@@ -12,9 +12,9 @@ app.use(express.json());
 app.use('/api', userRoutes);
 app.use(express.static(path.join(__dirname, 'public')));
 
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 3000;
 
-sequelize.sync({ alter: true })
+sequelize.sync({ alter: true, force: true })
     .then(() => {
         console.log('Database synced');
         app.listen(port, () => {
@@ -22,5 +22,3 @@ sequelize.sync({ alter: true })
         });
     })
     .catch((err) => console.error('Failed to sync database:', err));
-
-exports.app = app;
