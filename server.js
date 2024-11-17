@@ -4,6 +4,8 @@ const { sequelize } = require('./config/database');
 const path = require('path');
 const userRoutes = require('./routes/routes');
 
+const models = require('./models');
+
 const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -13,12 +15,15 @@ app.use('/api', userRoutes);
 app.use(express.static(path.join(__dirname, 'public')));
 
 const port = process.env.PORT || 3000;
+const host = process.env.HOST || '0.0.0.0';
 
 sequelize.sync({ alter: true, force: true })
     .then(() => {
         console.log('Database synced');
-        app.listen(port, () => {
+        app.listen(port, host, () => {
             console.log('Server is running');
         });
     })
     .catch((err) => console.error('Failed to sync database:', err));
+
+module.exports = app;

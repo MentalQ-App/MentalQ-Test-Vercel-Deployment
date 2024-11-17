@@ -38,8 +38,4 @@ const Users = sequelize.define('users', {
     }
 });
 
-Users.belongsTo(Credentials, { as : 'credentials', foreignKey: 'credentials_id' })
-
-Users.hasMany(Notes, { as: 'notes' , foreignKey: 'note_id' })
-
 module.exports = Users;

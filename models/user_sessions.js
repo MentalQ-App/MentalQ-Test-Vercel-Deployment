@@ -24,6 +24,4 @@ const UserSessions = sequelize.define('user_sessions', {
     }
 });
 
-UserSessions.belongsTo(Users,{ as: 'users' , foreignKey: 'user_id' })
-
 module.exports = UserSessions;
