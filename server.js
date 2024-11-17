@@ -23,11 +23,11 @@ process.on('unhandledRejection', (err) => {
 
 async function startServer(){
     try {
+        await runMigrations();
+        console.log('Migrations completed successfully');
         db.sequelize.authenticate()
         .then(() => {
             console.log('Database connection established successfully.');
-            runMigrations();
-            console.log('Migrations completed successfully');
             return db.sequelize.sync({ alter: false, force: false });})
             .then(() => {
                 console.log('Database synced');
