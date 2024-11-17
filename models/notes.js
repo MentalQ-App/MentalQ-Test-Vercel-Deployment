@@ -7,6 +7,7 @@ const Notes = sequelize.define('notes', {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
+        field: 'note_id',
     },
     user_id: {
         type: DataTypes.INTEGER,

@@ -9,6 +9,7 @@ const Users = sequelize.define('users', {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
+        field: 'user_id',
     },
     credentials_id: {
         type: DataTypes.INTEGER,

@@ -7,6 +7,7 @@ const UserSessions = sequelize.define('user_sessions', {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
+        field: 'session_id',
     },
     user_id: {
         type: DataTypes.INTEGER,

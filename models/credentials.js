@@ -7,6 +7,7 @@ const Credentials = sequelize.define('credentials', {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
+        field: 'credentials_id',
     },
     email: {
         type: DataTypes.STRING,

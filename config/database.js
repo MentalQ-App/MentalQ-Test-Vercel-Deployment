@@ -13,6 +13,13 @@ const sequelize = new Sequelize(
         dialect: process.env.DB_DIALECT, // Database dialect (e.g., postgres, mysql)
         dialectModule: mysql2,
         logging: false,              // Disable SQL query logging (optional)
+        define: {
+            engine : 'InnoDB',
+            charset: 'utf8mb4',
+            collate: 'utf8mb4_unicode_ci',
+            timestamps: true,
+            underscored: true,
+        }
     }
 );
 
