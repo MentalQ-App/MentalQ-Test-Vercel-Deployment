@@ -15,11 +15,11 @@ module.exports = {
       password: {
         type: Sequelize.STRING
       },
-      createdAt: {
+      created_at: {
         allowNull: false,
         type: Sequelize.DATE
       },
-      updatedAt: {
+      update_at: {
         allowNull: false,
         type: Sequelize.DATE
       }
