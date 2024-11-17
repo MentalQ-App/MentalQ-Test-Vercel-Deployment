@@ -12,7 +12,7 @@ const sequelize = new Sequelize(
         port: process.env.DB_PORT,   // Database port
         dialect: process.env.DB_DIALECT, // Database dialect (e.g., postgres, mysql)
         dialectModule: mysql2,
-        logging: true,              // Disable SQL query logging (optional)
+        logging: console.log,              // Disable SQL query logging (optional)
         define: {
             engine : 'InnoDB',
             charset: 'utf8mb4',
