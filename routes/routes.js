@@ -7,6 +7,7 @@ const authenticateToken = require('../middleware/authenticateToken');
 
 const router = express.Router();
 
+
 // CRUD operations for Users
 // router.post('/users', userController.createUser);       // Create
 // router.get('/users', userController.getAllUsers);       // Read all
