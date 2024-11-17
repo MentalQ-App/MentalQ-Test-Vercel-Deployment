@@ -1,4 +1,5 @@
 // config/database.js
+const mysql2 = require('mysql2');
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
@@ -10,6 +11,7 @@ const sequelize = new Sequelize(
         host: process.env.DB_HOST,   // Database host
         port: process.env.DB_PORT,   // Database port
         dialect: process.env.DB_DIALECT, // Database dialect (e.g., postgres, mysql)
+        dialectModule: mysql2,
         logging: false,              // Disable SQL query logging (optional)
     }
 );
