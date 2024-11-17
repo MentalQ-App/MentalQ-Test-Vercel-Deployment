@@ -2,7 +2,7 @@
 const { Sequelize } = require('sequelize');
 const { exec } = require('child_process');
 const config = require('./config/config.json');
-const Umzug = require('umzug');
+const Umzug = require('umzug').Umzug;
 
 async function runMigrations() {
     const env = process.env.NODE_ENV || 'development';
