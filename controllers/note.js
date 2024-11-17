@@ -1,100 +1,226 @@
-// controller/note.js
-const Note = require('../models/notes');
-const User = require('../models/users');
+const db = require('../models');
+const { Notes, Users } = db;
 
-// Create a new note
 exports.createNote = async (req, res) => {
     const { title, content, emotion } = req.body;
     const user_id = req.user_id;
+    let t;
+
     try {
-        const user = await User.findByPk(user_id);
-        if (user) {
-            const newNote = await Note.create({ user_id, title, content, emotion });
-            res.status(201).json({
-                error: false,
-                message: 'Note created successfully',
-                note: newNote
+        if (!title || !content || !emotion) {
+            return res.status(400).json({ 
+                error: true, 
+                message: 'All fields are required' 
             });
-        } else {
-            res.status(404).json({ error: true, message: 'User not found' });
         }
+
+        t = await db.sequelize.transaction();
+
+        const user = await Users.findByPk(user_id, { transaction: t });
+        
+        if (!user) {
+            await t.rollback();
+            return res.status(404).json({ 
+                error: true, 
+                message: 'User not found' 
+            });
+        }
+
+        const newNote = await Notes.create(
+            { 
+                user_id, 
+                title, 
+                content, 
+                emotion 
+            }, 
+            { transaction: t }
+        );
+
+        await t.commit();
+
+        res.status(201).json({
+            error: false,
+            message: 'Note created successfully',
+            note: newNote
+        });
     } catch (error) {
-        res.status(400).json({ error: true, message: error.message });
+        if (t) await t.rollback();
+        res.status(400).json({ 
+            error: true, 
+            message: error.message 
+        });
     }
 };
 
-// Get all notes for a specific user
 exports.getAllNotes = async (req, res) => {
     const user_id = req.user_id;
+    let t;
+
     try {
-        const user = await User.findByPk(user_id);
-        if (user) {
-            const notes = await Note.findAll({ where: { user_id } });
-            res.status(200).json({
-                error: false,
-                message: 'Notes retrieved successfully',
-                listNote: notes
+        t = await db.sequelize.transaction();
+
+        const user = await Users.findByPk(user_id, { transaction: t });
+        
+        if (!user) {
+            await t.rollback();
+            return res.status(404).json({ 
+                error: true, 
+                message: 'User not found' 
             });
-        } else {
-            res.status(404).json({ error: true, message: 'User not found' });
         }
+
+        const notes = await Notes.findAll({ 
+            where: { 
+                user_id,
+                isActive: true 
+            },
+            transaction: t 
+        });
+
+        await t.commit();
+
+        res.status(200).json({
+            error: false,
+            message: 'Notes retrieved successfully',
+            listNote: notes
+        });
     } catch (error) {
-        res.status(500).json({ error: true, message: error.message });
+        if (t) await t.rollback();
+        res.status(500).json({ 
+            error: true, 
+            message: error.message 
+        });
     }
 };
 
-// Get a specific note by ID
 exports.getNoteById = async (req, res) => {
     const { id } = req.params;
+    const user_id = req.user_id;
+    let t;
+
     try {
-        const note = await Note.findByPk(id);
-        if (note) {
-            res.json(note);
-        } else {
-            res.status(404).json({ error: true, message: 'Note not found' });
+        t = await db.sequelize.transaction();
+
+        const note = await Notes.findOne({ 
+            where: { 
+                note_id: id,
+                user_id,
+                isActive: true 
+            },
+            transaction: t 
+        });
+
+        if (!note) {
+            await t.rollback();
+            return res.status(404).json({ 
+                error: true, 
+                message: 'Note not found' 
+            });
         }
+
+        await t.commit();
+        res.status(200).json({
+            error: false,
+            message: 'Note retrieved successfully',
+            note
+        });
     } catch (error) {
-        res.status(500).json({ error: true, message: error.message });
+        if (t) await t.rollback();
+        res.status(500).json({ 
+            error: true, 
+            message: error.message 
+        });
     }
 };
 
-// Update a note by ID
 exports.updateNote = async (req, res) => {
     const { id } = req.params;
     const { title, content, emotion } = req.body;
+    const user_id = req.user_id;
+    let t;
+
     try {
-        const note = await Note.findByPk(note_id = id);
-        if (note) {
-            note.title = title ?? note.title;
-            note.content = content ?? note.content;
-            note.emotion = emotion ?? note.emotion;
-            await note.save();
-            res.status(200).json({
-                error: false,
-                message: 'Note updated successfully',
-                note: note
+        t = await db.sequelize.transaction();
+
+        const note = await Notes.findOne({ 
+            where: { 
+                note_id: id,
+                user_id,
+                isActive: true 
+            },
+            transaction: t 
+        });
+
+        if (!note) {
+            await t.rollback();
+            return res.status(404).json({ 
+                error: true, 
+                message: 'Note not found' 
             });
-        } else {
-            res.status(404).json({ error: true, message: 'Note not found' });
         }
+
+        const updatedNote = await note.update({
+            title: title || note.title,
+            content: content || note.content,
+            emotion: emotion || note.emotion
+        }, { transaction: t });
+
+        await t.commit();
+
+        res.status(200).json({
+            error: false,
+            message: 'Note updated successfully',
+            note: updatedNote
+        });
     } catch (error) {
-        res.status(400).json({ error: true, message: error.message });
+        if (t) await t.rollback();
+        res.status(400).json({ 
+            error: true, 
+            message: error.message 
+        });
     }
 };
 
-// Delete a note by ID
 exports.deleteNote = async (req, res) => {
     const { id } = req.params;
+    const user_id = req.user_id;
+    let t;
+
     try {
-        const note = await Note.findByPk(id);
-        if (note) {
-            note.isActive = false;
-            await note.save();
-            res.json({ message: 'Note deleted successfully' });
-        } else {
-            res.status(404).json({ error: true, message: 'Note not found' });
+        t = await db.sequelize.transaction();
+
+        const note = await Notes.findOne({ 
+            where: { 
+                note_id: id,
+                user_id,
+                isActive: true 
+            },
+            transaction: t 
+        });
+
+        if (!note) {
+            await t.rollback();
+            return res.status(404).json({ 
+                error: true, 
+                message: 'Note not found' 
+            });
         }
+
+        await note.update({ 
+            isActive: false 
+        }, { transaction: t });
+
+        await t.commit();
+
+        res.status(200).json({ 
+            error: false,
+            message: 'Note deleted successfully' 
+        });
     } catch (error) {
-        res.status(400).json({ error: true, message: error.message });
+        if (t) await t.rollback();
+        res.status(400).json({ 
+            error: true, 
+            message: error.message 
+        });
     }
 };

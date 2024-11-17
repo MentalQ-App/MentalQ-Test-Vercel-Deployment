@@ -1,30 +1,46 @@
-// controllers/auth.js
-const { sequelize } = require('../config/database');
+const db = require('../models');
 const jwt = require('jsonwebtoken');
-const User = require('../models/users');
-const Credentials = require('../models/credentials');
-const UserSession = require('../models/user_sessions');
 const bcrypt = require('bcrypt');
+require('dotenv').config();
+
+const { Users, Credentials, UserSessions } = db;
 
 exports.registerUser = async (req, res) => {
     const { email, password, name, birthday } = req.body;
-    const [day, month, year] = birthday.split('/');
-    const birthdayDate = new Date(`${year}-${month}-${day}`);
-
-    // Start a new transaction
-    const t = await sequelize.transaction();
+    let t;
 
     try {
+        if (!email || !password || !name || !birthday) {
+            return res.status(400).json({ 
+                error: true, 
+                message: 'All fields are required' 
+            });
+        }
+
+        const [day, month, year] = birthday.split('/');
+        const birthdayDate = new Date(`${year}-${month}-${day}`);
+
+        if (isNaN(birthdayDate.getTime())) {
+            return res.status(400).json({ 
+                error: true, 
+                message: 'Invalid birthday format' 
+            });
+        }
+
+        t = await db.sequelize.transaction();
+
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
-        // 1. Insert into credentials table
+
         const newCredentials = await Credentials.create(
-            { email, password: hashedPassword },
+            { 
+                email, 
+                password: hashedPassword 
+            },
             { transaction: t }
         );
 
-        // 2. Insert into users table, using credentials_id from the credentials table
-        const newUser = await User.create(
+        const newUsers = await Users.create(
             {
                 credentials_id: newCredentials.credentials_id,
                 email,
@@ -34,23 +50,27 @@ exports.registerUser = async (req, res) => {
             { transaction: t }
         );
 
-        const token = jwt.sign({ user_id: newUser.user_id }, process.env.TOKEN_SECRET);
+        const token = jwt.sign(
+            { user_id: newUsers.user_id }, 
+            process.env.TOKEN_SECRET
+        );
 
-        await UserSession.create({ 
-            user_id: newUser.user_id, 
-            session_token: token }, 
-            { transaction: t });
+        await UserSessions.create(
+            { 
+                user_id: newUsers.user_id, 
+                session_token: token 
+            }, 
+            { transaction: t }
+        );
 
-        // Commit the transaction if both inserts are successful
         await t.commit();
 
-        const safeUser  = {
-            email: newUser.email,
-            name: newUser.name,
-            birthday: newUser.birthday
-        }
+        const safeUser = {
+            email: newUsers.email,
+            name: newUsers.name,
+            birthday: newUsers.birthday
+        };
 
-        // Respond with the created user
         res.status(201).json({
             error: false,
             message: 'User registered successfully!',
@@ -58,50 +78,61 @@ exports.registerUser = async (req, res) => {
             token: token,
         });
     } catch (error) {
-        // Rollback the transaction in case of an error
-        await t.rollback();
+        if (t) await t.rollback();
         res.status(400).json({ error: true, message: error.message });
     }
 };
 
 exports.loginUser = async (req, res) => {
     const { email, password } = req.body;
-
-    const t = await sequelize.transaction();
+    let t;
 
     try {
         if (!email || !password) {
-            res.status(400).json({ error: true, message: 'Email and password are required' });
-            return;
+            return res.status(400).json({ 
+                error: true, 
+                message: 'Email and password are required' 
+            });
         }
 
-        const user = await User.findOne({
+        t = await db.sequelize.transaction();
+
+        const user = await Users.findOne({
             where: { email },
             include: 'credentials',
             transaction: t,
         });
 
         if (!user) {
-            res.status(404).json({ error: true, message: 'User not found' });
-            return;
+            await t.rollback();
+            return res.status(404).json({ 
+                error: true, 
+                message: 'User not found' 
+            });
         }
 
         const validPassword = await bcrypt.compare(password, user.credentials.password);
 
         if (!validPassword) {
-            res.status(401).json({ error: true, message: 'Invalid password' });
-            return;
+            await t.rollback();
+            return res.status(401).json({ 
+                error: true, 
+                message: 'Invalid password' 
+            });
         }
 
-        const token = jwt.sign({ user_id: user.user_id }, process.env.TOKEN_SECRET);
+        const token = jwt.sign(
+            { user_id: user.user_id }, 
+            process.env.TOKEN_SECRET
+        );
 
-        await UserSession.update(
-            { session_token: token },
+        await UserSessions.upsert(
             {
-              where: { user_id: user.user_id },
-              transaction: t
-            }
-          );
+                user_id: user.user_id,
+                session_token: token
+            },
+            { transaction: t }
+        );
 
         await t.commit();
 
@@ -109,7 +140,7 @@ exports.loginUser = async (req, res) => {
             email: user.email,
             name: user.name,
             birthday: user.birthday
-        }
+        };
 
         res.status(200).json({ 
             error: false,
@@ -119,19 +150,42 @@ exports.loginUser = async (req, res) => {
         });
 
     } catch (error) {
-        await t.rollback();
-        res.status(400).json({ error: error.message });
+        if (t) await t.rollback();
+        res.status(400).json({ 
+            error: true, 
+            message: error.message 
+        });
     }
 };
 
-
 exports.logoutUser = async (req, res) => {
-    const token = req.headers['authorization'].split(' ')[1];
-
-    const t = await sequelize.transaction();
+    const authHeader = req.headers['authorization'];
+    let t;
 
     try {
-        await UserSession.destroy({ where: { token }, transaction: t });
+        if (!authHeader) {
+            return res.status(401).json({ 
+                error: true, 
+                message: 'Authorization header missing' 
+            });
+        }
+
+        const token = authHeader.split(' ')[1];
+        t = await db.sequelize.transaction();
+
+        const result = await UserSessions.destroy({ 
+            where: { session_token: token }, 
+            transaction: t 
+        });
+
+        if (result === 0) {
+            await t.rollback();
+            return res.status(404).json({ 
+                error: true, 
+                message: 'Session not found' 
+            });
+        }
+
         await t.commit();
 
         res.json({ 
@@ -139,8 +193,10 @@ exports.logoutUser = async (req, res) => {
             message: 'User logged out successfully' 
         });
     } catch (error) {
-        await t.rollback();
-        res.status(400).json({ error: true, message: error.message });
+        if (t) await t.rollback();
+        res.status(400).json({ 
+            error: true, 
+            message: error.message 
+        });
     }
 };
-

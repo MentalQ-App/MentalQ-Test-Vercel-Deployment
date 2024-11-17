@@ -8,7 +8,8 @@
     "mysql2": "^3.11.4",
     "pg": "^8.13.1",
     "pg-hstore": "^2.3.4",
-    "sequelize": "^6.37.5"
+    "sequelize": "^6.37.5",
+    "sequelize-cli": "^6.6.2"
   },
   "scripts": {
     "start": "node server.js",

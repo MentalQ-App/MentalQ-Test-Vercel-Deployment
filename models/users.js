@@ -1,42 +1,66 @@
-// models/users.js
-const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/database');
-const Credentials = require('./credentials');
-const Notes = require('./notes');
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+  class Users extends Model {
+    /**
+     * Helper method for defining associations.
+     * This method is not a part of Sequelize lifecycle.
+     * The `models/index` file will call this method automatically.
+     */
+    static associate(models) {
+      Users.belongsTo(models.Credentials, {
+        foreignKey: 'credentials_id',
+        as: 'credentials',
+      });
 
-const Users = sequelize.define('users', {
-    user_id: {
+      Users.hasMany(models.Notes, {
+        foreignKey: 'user_id',
+        as: 'notes',
+      });
+    }
+  }
+
+  Users.init(
+    {
+      user_id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
         field: 'user_id',
-    },
-    credentials_id: {
+      },
+      credentials_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'credentials',
-            key: 'credentials_id',
+          model: 'credentials',
+          key: 'credentials_id',
         },
         onDelete: 'CASCADE',
-        onUpdate: 'CASCADE'
-    },
-    email: {
+        onUpdate: 'CASCADE',
+      },
+      email: {
         type: DataTypes.STRING,
         unique: true,
         allowNull: false,
         validate: {
-            isEmail: true,
+          isEmail: true,
         },
-    },
-    name: {
+      },
+      name: {
         type: DataTypes.STRING,
         allowNull: false,
-    },
-    birthday: {
+      },
+      birthday: {
         type: DataTypes.DATEONLY,
         allowNull: true,
+      },
+    },
+    {
+      sequelize,
+      modelName: 'Users',
+      tableName: 'users',
     }
-});
+  );
 
-module.exports = Users;
+  return Users;
+};
