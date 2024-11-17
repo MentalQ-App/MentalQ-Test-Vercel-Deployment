@@ -39,7 +39,4 @@ db.sequelize.authenticate()
     });
 
 // Export app and sequelize correctly from db object
-module.exports = { 
-    app, 
-    sequelize: db.sequelize 
-};
+module.exports = app
