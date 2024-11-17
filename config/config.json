@@ -19,8 +19,8 @@
     "password": "${DB_PASSWORD}",
     "database": "${DB_NAME}",
     "host": "${DB_HOST}",
-    "dialect": "${DB_DIALECT}",
-    "dialectModule": "${DB_DIALECT_MODULE}",
+    "dialect": "mysql",
+    "dialectModule": "mysql2",
     "logging": false,
     "dialectOptions": {
       "ssl": {
