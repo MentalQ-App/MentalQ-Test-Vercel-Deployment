@@ -15,9 +15,9 @@ app.use('/api', userRoutes);
 app.use(express.static(path.join(__dirname, 'public')));
 
 const port = process.env.PORT || 3000;
-const host = process.env.HOST || '0.0.0.0';
+const host = process.env.HOST || '127.0.0.1';
 
-sequelize.sync({ alter: true, force: true })
+sequelize.sync({ alter: true })
     .then(() => {
         console.log('Database synced');
         app.listen(port, host, () => {
