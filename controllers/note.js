@@ -88,7 +88,8 @@ exports.deleteNote = async (req, res) => {
     try {
         const note = await Note.findByPk(id);
         if (note) {
-            await note.destroy();
+            note.isActive = false;
+            await note.save();
             res.json({ message: 'Note deleted successfully' });
         } else {
             res.status(404).json({ error: true, message: 'Note not found' });

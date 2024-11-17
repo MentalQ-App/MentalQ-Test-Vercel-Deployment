@@ -25,6 +25,6 @@ router.get('/notes', authenticateToken, noteController.getAllNotes);
 router.get('/notes/:id', authenticateToken,noteController.getNoteById);
 router.post('/notes', authenticateToken, noteController.createNote);
 router.put('/notes/:id', authenticateToken, noteController.updateNote);
-router.delete('/notes/:id', authenticateToken, noteController.deleteNote);
+router.put('/notes/delete/:id', authenticateToken, noteController.deleteNote);
 
 module.exports = router;

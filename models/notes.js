@@ -29,6 +29,11 @@ const Notes = sequelize.define('notes', {
     emotion: {
         type: DataTypes.STRING,
         allowNull: true,
+    },
+    isActive: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
     }
 });
 
