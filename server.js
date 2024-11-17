@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const userRoutes = require('./routes/routes');
-const config = require('./config/config.json');
+const config = require('./config/config');
 const db = require('./models');
 const runMigrations = require('./migrations-runner');
 
@@ -21,24 +21,30 @@ process.on('unhandledRejection', (err) => {
     console.error('Unhandled Rejection:', err);
 });
 
-async function startServer(){
+async function startServer() {
     try {
         await runMigrations();
         console.log('Migrations completed successfully');
-        db.sequelize.authenticate()
-        .then(() => {
+        
+        // Authenticate the database connection
+        try {
+            await db.sequelize.authenticate();
             console.log('Database connection established successfully.');
-            return db.sequelize.sync({ alter: false, force: false });})
-            .then(() => {
-                console.log('Database synced');
-                app.listen(port, host, () => {
-                    console.log(`Server is running on ${host}:${port}`);
-                });
-            })
-            .catch((err) => {
-                console.error('Error during startup:', err);
-                process.exit(1);
-            });    
+        } catch (err) {
+            console.error('Unable to connect to the database:', err);
+            process.exit(1); // Exit if the database connection fails
+        }
+        
+        // Sync database (conditionally based on the environment)
+        const syncOptions = process.env.NODE_ENV === 'production' ? { alter: false } : { alter: true };
+        await db.sequelize.sync(syncOptions);
+        console.log('Database synced');
+
+        // Start the server
+        app.listen(port, host, () => {
+            console.log(`Server is running on ${host}:${port}`);
+        });
+
     } catch (error) {
         console.error('Error during startup:', error);
         process.exit(1);
@@ -49,4 +55,4 @@ async function startServer(){
 startServer();
 
 // Export app and sequelize correctly from db object
-module.exports = app
+module.exports = app;

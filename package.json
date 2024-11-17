@@ -14,7 +14,6 @@
   },
   "scripts": {
     "start": "node server.js",
-    "migrate": "node -e 'require(\"./migrations-runner.js\")()'",
-    "vercel-build": "npm run migrate"
+    "migrate": "node -e 'require(\"./migrations-runner.js\")()'"
   }
 }

@@ -1,6 +1,6 @@
 const { Sequelize, QueryInterface } = require('sequelize');
-const config = require('./config/config.json');
-const dbConfig = config['development'];  // Or 'production' if you're deploying
+const config = require('./config/config');
+const dbConfig = config['production'];  // Or 'production' if you're deploying
 
 async function runMigrations() {
     const sequelize = new Sequelize(
@@ -10,7 +10,7 @@ async function runMigrations() {
         {
             host: dbConfig.host,
             dialect: dbConfig.dialect,
-            logging: console.log,  // Enable logging for debugging
+            logging: console.log,
         }
     );
 
@@ -19,7 +19,7 @@ async function runMigrations() {
         console.log('Database connection established.');
 
         const queryInterface = sequelize.getQueryInterface();
-        
+
         // Add migration logic here (e.g., creating tables, adding columns, etc.)
         // Example of running a manual migration to create a table
         await queryInterface.createTable('Users', {
@@ -59,4 +59,5 @@ async function runMigrations() {
     }
 }
 
-runMigrations();
+// Export the function correctly
+module.exports = runMigrations;
