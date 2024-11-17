@@ -1,6 +1,6 @@
 const { Sequelize, QueryInterface } = require('sequelize');
-const config = require('./config/config');
-const dbConfig = config['production'];  // Or 'production' if you're deploying
+const config = require('./config/config.json');
+const dbConfig = config['development'];  // Or 'production' if you're deploying
 
 async function runMigrations() {
     const sequelize = new Sequelize(
