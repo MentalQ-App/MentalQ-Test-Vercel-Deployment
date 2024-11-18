@@ -9,14 +9,11 @@
     "pg": "^8.13.1",
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.37.5",
-    "sequelize-cli": "^6.6.2"
+    "sequelize-cli": "^6.6.2",
+    "umzug": "^3.8.2"
   },
   "scripts": {
     "start": "node server.js",
-    "deploy": "npm run migrate && vercel deploy --token $VERCEL_TOKEN",
     "migrate": "npx sequelize-cli db:migrate"
-  },
-  "devDependencies": {
-    "vercel": "^39.0.2"
   }
 }
