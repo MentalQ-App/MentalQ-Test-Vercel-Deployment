@@ -14,6 +14,7 @@
   },
   "scripts": {
     "start": "node server.js",
-    "migrate": "node -e 'require(\"./migrations-runner.js\")()'"
+    "migrate": "npx sequelize-cli db:migrate",
+    "deploy": "npm run migrate && vercel deploy"
   }
 }

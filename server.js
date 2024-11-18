@@ -3,7 +3,6 @@ const path = require('path');
 const userRoutes = require('./routes/routes');
 const config = require('./config/config');
 const db = require('./models');
-const runMigrations = require('./migrations-runner');
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
@@ -23,9 +22,6 @@ process.on('unhandledRejection', (err) => {
 
 async function startServer() {
     try {
-        await runMigrations();
-        console.log('Migrations completed successfully');
-        
         // Authenticate the database connection
         try {
             await db.sequelize.authenticate();
