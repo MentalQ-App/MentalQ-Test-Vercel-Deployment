@@ -13,8 +13,8 @@
   },
   "scripts": {
     "start": "node server.js",
-    "migrate": "npx sequelize-cli db:migrate",
-    "deploy": "npm run migrate && vercel deploy"
+    "deploy": "npm run migrate && vercel deploy --token $VERCEL_TOKEN",
+    "migrate": "npx sequelize-cli db:migrate"
   },
   "devDependencies": {
     "vercel": "^39.0.2"
