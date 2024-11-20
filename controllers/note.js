@@ -7,12 +7,12 @@ exports.createNote = async (req, res) => {
     let t;
 
     try {
-        if (!title || !content || !emotion) {
-            return res.status(400).json({ 
-                error: true, 
-                message: 'All fields are required' 
-            });
-        }
+        // if (!title || !content || !emotion) {
+        //     return res.status(400).json({ 
+        //         error: true, 
+        //         message: 'All fields are required' 
+        //     });
+        // }
 
         t = await db.sequelize.transaction();
 
