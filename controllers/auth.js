@@ -128,7 +128,7 @@ exports.verifyEmail = async (req, res) => {
         const credentials = await Credentials.findOne({
             where: {
                 email_verification_token: token,
-                email_verification_expires: { [Op.gt]: Date.now() }
+                email_verification_expires: { [db.Sequelize.Op.gt]: Date.now() }
             }
         });
 
