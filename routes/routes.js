@@ -13,6 +13,8 @@ router.put('/users', authenticateToken,userController.updateUser);
 // Auth Routes
 router.post('/register', authController.registerUser);
 router.post('/login', authController.loginUser);
+router.post('/request-reset', authController.requestPasswordReset);
+router.post('/reset-password', authController.resetPassword);
 
 // Note Routes
 router.get('/notes', authenticateToken, noteController.getAllNotes);
