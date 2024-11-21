@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Verification</title>
+    <style>
+        :root {
+            --success-color: #4CAF50;
+            --error-color: #FF5252;
+            --btn-bg-color: #4CAF50;
+            --btn-hover-color: #45A049;
+            --text-color: #FFFFFF;
+            --bg-color: #121212;
+            --container-bg-color: #1E1E1E;
+            --shadow-color: rgba(0, 0, 0, 0.5);
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: var(--container-bg-color);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px var(--shadow-color);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .success {
+            color: var(--success-color);
+        }
+
+        .error {
+            color: var(--error-color);
+        }
+
+        .btn {
+            background-color: var(--btn-bg-color);
+            color: var(--text-color);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 20px;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn:hover {
+            background-color: var(--btn-hover-color);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            .btn {
+                font-size: 0.9rem;
+                padding: 10px 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+
+            .btn {
+                font-size: 0.8rem;
+                padding: 8px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <% if (status === 'success') { %>
+            <h2 class="success">🎉 Email Verified!</h2>
+            <p><%= message %></p>
+        <% } else { %>
+            <h2 class="error">⚠️ Verification Failed</h2>
+            <p><%= message %></p>
+        <% } %>
+        <a href="mentalq://" class="btn">Open MentalQ App</a>
+    </div>
+</body>
+</html>

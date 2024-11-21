@@ -7,10 +7,11 @@ const db = require('./models');
 const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.set('view engine', 'ejs');
 
 // Routes
 app.use('/api', userRoutes);
-app.use(express.static(path.join(__dirname, 'public')));
+app.set('views', path.join(__dirname, 'views'));
 
 const port = process.env.PORT || 3000;
 const host = process.env.HOST || '127.0.0.1';

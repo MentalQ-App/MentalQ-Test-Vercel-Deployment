@@ -2,11 +2,60 @@ const db = require('../models');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const validator = require('validator');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const { Users, Credentials, UserSessions, PasswordResetTokens } = db;
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+    },
+});
+
+async function sendVerificationEmail(email, token) {
+    const verificationLink = `${process.env.FRONTEND_URL}/verify-email/${token}`;
+
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Verify Your Email',
+        html: `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="text-align: center; background-color: #f4f4f4; padding: 20px;">
+                    <h2 style="color: #555;">Email Verification</h2>
+                </div>
+                <div style="padding: 20px; background-color: #fff; border: 1px solid #ddd;">
+                    <p>Hello,</p>
+                    <p>Please verify your email by clicking the button below:</p>
+                    <div style="text-align: center; margin: 20px 0;">
+                        <a href="${verificationLink}" style="
+                            display: inline-block; 
+                            padding: 10px 20px; 
+                            background-color: #4CAF50; 
+                            color: white; 
+                            text-decoration: none; 
+                            border-radius: 5px;
+                            font-weight: bold;
+                        ">Verify Email</a>
+                    </div>
+                    <p>This link will expire in 1 hour. If you did not create an account, you can ignore this email.</p>
+                    <p>Thank you,</p>
+                    <p>The Support Team</p>
+                </div>
+                <div style="text-align: center; background-color: #f4f4f4; padding: 10px; color: #777; font-size: 12px;">
+                    <p>&copy; 2024 MentalQ. All rights reserved.</p>
+                </div>
+            </div>
+        `,
+    };
+
+    await transporter.sendMail(mailOptions);
+}
 
 exports.registerUser = async (req, res) => {
     const { email, password, name, birthday } = req.body;
@@ -35,15 +84,20 @@ exports.registerUser = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
+        const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+        const emailVerificationExpires = Date.now() + 3600000;
+
         const newCredentials = await Credentials.create(
             { 
                 email, 
-                password: hashedPassword 
+                password: hashedPassword,
+                email_verification_token: emailVerificationToken,
+                email_verification_expires: emailVerificationExpires
             },
             { transaction: t }
         );
 
-        const newUsers = await Users.create(
+        await Users.create(
             {
                 credentials_id: newCredentials.credentials_id,
                 email,
@@ -53,36 +107,52 @@ exports.registerUser = async (req, res) => {
             { transaction: t }
         );
 
-        const token = jwt.sign(
-            { user_id: newUsers.user_id }, 
-            process.env.TOKEN_SECRET
-        );
-
-        await UserSessions.create(
-            { 
-                user_id: newUsers.user_id, 
-                session_token: token 
-            }, 
-            { transaction: t }
-        );
+        await sendVerificationEmail(email, emailVerificationToken);
 
         await t.commit();
 
-        const safeUser = {
-            email: newUsers.email,
-            name: newUsers.name,
-            birthday: newUsers.birthday
-        };
-
         res.status(201).json({
             error: false,
-            message: 'User registered successfully!',
-            user: safeUser,
-            token: token,
+            message: 'User registered successfully! Please check your email to verify your account.'
         });
     } catch (error) {
         if (t) await t.rollback();
         res.status(400).json({ error: true, message: error.message });
+    }
+};
+
+exports.verifyEmail = async (req, res) => {
+    const { token } = req.params;
+
+    try {
+        const credentials = await Credentials.findOne({
+            where: {
+                email_verification_token: token,
+                email_verification_expires: { [db.Sequelize.Op.gt]: Date.now() }
+            }
+        });
+
+        if (!credentials) {
+            return res.render('email-register-verification', { 
+                status: 'error',
+                message: 'Invalid or expired verification token' 
+            });
+        }
+
+        credentials.is_email_verified = true;
+        credentials.email_verification_token = null;
+        credentials.email_verification_expires = null;
+        await credentials.save();
+
+        res.render('email-register-verification', { 
+            status: 'success',
+            message: 'Email verified successfully! You can now open MentalQ App and login'
+        });
+    } catch (error) {
+        res.render('email-register-verification', { 
+            status: 'error',
+            message: error.message 
+        });
     }
 };
 
@@ -114,6 +184,14 @@ exports.loginUser = async (req, res) => {
             });
         }
 
+        if (!user.credentials.is_email_verified) {
+            await t.rollback();
+            return res.status(401).json({ 
+                error: true, 
+                message: 'Email is not verified' 
+            });
+        }
+        
         const validPassword = await bcrypt.compare(password, user.credentials.password);
 
         if (!validPassword) {
@@ -204,18 +282,9 @@ exports.logoutUser = async (req, res) => {
     }
 };
 
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-    },
-});
-
 const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
-
 
 const sendOTPEmail = async (email, otp) => {
     const mailOptions = {
@@ -239,7 +308,7 @@ const sendOTPEmail = async (email, otp) => {
                     <p>The Support Team</p>
                 </div>
                 <div style="text-align: center; background-color: #f4f4f4; padding: 10px; color: #777; font-size: 12px;">
-                    <p>&copy; 2024 Your Company Name. All rights reserved.</p>
+                    <p>&copy; 2024 MentalQ. All rights reserved.</p>
                 </div>
             </div>
         `,

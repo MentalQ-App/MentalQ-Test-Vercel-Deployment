@@ -26,7 +26,20 @@ module.exports = (sequelize, DataTypes) => {
     password: {
       type: DataTypes.STRING,
       allowNull: false,
-    }
+    },
+    email_verification_token: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    email_verification_expires: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    is_email_verified: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
   }, {
     sequelize,
     modelName: 'Credentials', 

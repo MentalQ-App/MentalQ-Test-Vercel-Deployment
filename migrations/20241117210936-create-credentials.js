@@ -15,6 +15,15 @@ module.exports = {
       password: {
         type: Sequelize.STRING
       },
+      email_verification_token: {
+        type: Sequelize.STRING
+      },
+      email_verification_expires: {
+        type: Sequelize.DATE
+      },
+      is_email_verified: {
+        type: Sequelize.BOOLEAN
+      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE
