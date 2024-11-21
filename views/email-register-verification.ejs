@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #B7E5DE;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .success {
+            color: #289985;
+        }
+        .error {
+            color: #FF6B6B;
+        }
+        .btn {
+            background-color: #289985;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <% if (status === 'success') { %>
+            <h2 class="success">Email Verified!</h2>
+            <p class="success"><%= message %></p>
+        <% } else { %>
+            <h2 class="error">Verification Failed</h2>
+            <p class="error"><%= message %></p>
+        <% } %>
+        <a href="/login" class="btn">Go to Login</a>
+    </div>
+</body>
+</html>
