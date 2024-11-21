@@ -12,7 +12,7 @@ router.put('/users', authenticateToken,userController.updateUser);
 
 // Auth Routes
 router.post('/register', authController.registerUser);
-router.get('/verify-email', authController.verifyEmail);
+router.get('/verify-email/:token', authController.verifyEmail);
 router.post('/login', authController.loginUser);
 router.post('/request-reset', authController.requestPasswordReset);
 router.post('/reset-password', authController.resetPassword);
