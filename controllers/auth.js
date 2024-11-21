@@ -184,6 +184,14 @@ exports.loginUser = async (req, res) => {
             });
         }
 
+        if (!user.credentials.is_email_verified) {
+            await t.rollback();
+            return res.status(401).json({ 
+                error: true, 
+                message: 'Email is not verified' 
+            });
+        }
+        
         const validPassword = await bcrypt.compare(password, user.credentials.password);
 
         if (!validPassword) {
