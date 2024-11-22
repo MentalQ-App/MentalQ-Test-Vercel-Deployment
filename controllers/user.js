@@ -2,6 +2,8 @@ const db = require('../models');
 const { Users, Credentials } = db;
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const { bucket } = require('../config/firebase');
+const { format } = require('util');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -55,28 +57,42 @@ async function sendVerificationEmailUpdate(email, token) {
     await transporter.sendMail(mailOptions);
 }
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadPath = path.join(__dirname, '../uploads/profiles');
-        try {
-            if (!fs.existsSync(uploadPath)) {
-                fs.mkdirSync(uploadPath, { recursive: true });
-            }
-        } catch (err) {
-            console.error('Error creating directory:', err);
-            return cb(new Error('Failed to create upload directory.'));
-        }
-        cb(null, uploadPath);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, `profile-${req.user_id}-${uniqueSuffix}${path.extname(file.originalname)}`);
-    }
-});
+// const storage = multer.diskStorage({
+//     destination: (req, file, cb) => {
+//         const uploadPath = path.join(__dirname, '../uploads/profiles');
+//         try {
+//             if (!fs.existsSync(uploadPath)) {
+//                 fs.mkdirSync(uploadPath, { recursive: true });
+//             }
+//         } catch (err) {
+//             console.error('Error creating directory:', err);
+//             return cb(new Error('Failed to create upload directory.'));
+//         }
+//         cb(null, uploadPath);
+//     },
+//     filename: (req, file, cb) => {
+//         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+//         cb(null, `profile-${req.user_id}-${uniqueSuffix}${path.extname(file.originalname)}`);
+//     }
+// });
 
-const upload = multer({ 
+// const upload = multer({ 
+//     storage: storage,
+//     limits: { fileSize: 5 * 1024 * 1024 },
+//     fileFilter: (req, file, cb) => {
+//         const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+//         if (allowedTypes.includes(file.mimetype)) {
+//             cb(null, true);
+//         } else {
+//             cb(new Error('Invalid file type. Only JPEG, PNG, and GIF are allowed.'));
+//         }
+//     }
+// });
+
+const storage = multer.memoryStorage();
+const upload = multer({
     storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 },
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
     fileFilter: (req, file, cb) => {
         const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
         if (allowedTypes.includes(file.mimetype)) {
@@ -142,10 +158,44 @@ exports.updateUser = async (req, res) => {
 
         }
 
-
         if (req.file) {
-            const profilePhotoUrl = `/uploads/profiles/${req.file.filename}`;
-            updateData.profile_photo_url = profilePhotoUrl;
+            const fileName = `profile-${user_id}-${Date.now()}${path.extname(req.file.originalname)}`;
+            const fileUpload = bucket.file(`profile-pictures/${fileName}`);
+
+            const blobStream = fileUpload.createWriteStream({
+                metadata: {
+                    contentType: req.file.mimetype
+                }
+            });
+
+            await new Promise((resolve, reject) => {
+                blobStream.on('error', (error) => {
+                    reject(error);
+                });
+
+                blobStream.on('finish', async () => {
+                    await fileUpload.makePublic();
+                    
+                    const publicUrl = format(
+                        `https://storage.googleapis.com/${bucket.name}/${fileUpload.name}`
+                    );
+                    
+                    if (user.profile_photo_url) {
+                        try {
+                            const oldFileName = user.profile_photo_url.split('/').pop();
+                            const oldFile = bucket.file(`profile-pictures/${oldFileName}`);
+                            await oldFile.delete().catch(() => {});
+                        } catch (error) {
+                            console.error('Error deleting old profile photo:', error);
+                        }
+                    }
+
+                    updateData.profile_photo_url = publicUrl;
+                    resolve();
+                });
+
+                blobStream.end(req.file.buffer);
+            });
         }
 
         if (name && name !== user.name) {
