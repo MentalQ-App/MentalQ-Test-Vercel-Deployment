@@ -12,6 +12,13 @@ app.set('view engine', 'ejs');
 // Routes
 app.use('/api', userRoutes);
 app.set('views', path.join(__dirname, 'views'));
+app.use('/uploads/profiles', (req, res, next) => {
+    if (!req.user_id) {
+        return res.status(403).send('Access denied');
+    }
+    next();
+}, express.static(path.join(__dirname, '../uploads/profiles')));
+
 
 const port = process.env.PORT || 3000;
 const host = process.env.HOST || '127.0.0.1';
