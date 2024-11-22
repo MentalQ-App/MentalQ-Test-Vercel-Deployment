@@ -157,15 +157,11 @@ exports.updateUser = async (req, res) => {
             const emailVerificationToken = crypto.randomBytes(32).toString('hex');
             const emailVerificationExpires = Date.now() + 3600000;
 
-            await Credentials.update(
-                {
-                    email,
-                    email_verification_token: emailVerificationToken,
-                    email_verification_expires: emailVerificationExpires,
-                    is_email_verified: false
-                },
-                { where: { user_id }, transaction }
-            );
+            user.credentials.email = email
+            user.credentials.email_verification_token = emailVerificationToken
+            user.credentials.email_verification_expires = emailVerificationExpires
+            user.credentials.is_email_verified = false
+            await user.credentials.save({ transaction: t });
 
             await sendVerificationEmail(email, emailVerificationToken);
         }
