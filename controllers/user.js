@@ -15,7 +15,7 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-async function sendVerificationEmail(email, token) {
+async function sendVerificationEmailUpdate(email, token) {
     const verificationLink = `${process.env.FRONTEND_URL}/verify-email/${token}`;
 
     const mailOptions = {
@@ -83,6 +83,7 @@ const upload = multer({
 exports.updateUser = async (req, res) => {
     const user_id = req.user_id;
     const { email, name, birthday } = req.body;
+    const updateData = {};
     let t;
 
     try {
@@ -117,17 +118,27 @@ exports.updateUser = async (req, res) => {
                     message: 'Email already exists'
                 });
             }
+
+            const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+            const emailVerificationExpires = Date.now() + 3600000;
+
+            user.credentials.email = email
+            user.credentials.email_verification_token = emailVerificationToken
+            user.credentials.email_verification_expires = emailVerificationExpires
+            user.credentials.is_email_verified = false
+
+            updateData.email = email;
+
+            await user.credentials.save({ transaction: t });
+
+            await sendVerificationEmailUpdate(email, emailVerificationToken);
+
         }
 
-        const updateData = {};
 
         if (req.file) {
             const profilePhotoUrl = `/uploads/profiles/${req.file.filename}`;
             updateData.profile_photo_url = profilePhotoUrl;
-        }
-
-        if (email && email !== user.email) {
-            updateData.email = email;
         }
 
         if (name && name !== user.name) {
@@ -153,18 +164,18 @@ exports.updateUser = async (req, res) => {
 
         const updatedUser = await user.update(updateData, { transaction: t });
 
-        if (email && email !== user.email) {
-            const emailVerificationToken = crypto.randomBytes(32).toString('hex');
-            const emailVerificationExpires = Date.now() + 3600000;
+        // if (email && email !== user.email) {
+        //     const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+        //     const emailVerificationExpires = Date.now() + 3600000;
 
-            user.credentials.email = email
-            user.credentials.email_verification_token = emailVerificationToken
-            user.credentials.email_verification_expires = emailVerificationExpires
-            user.credentials.is_email_verified = false
-            await user.credentials.save({ transaction: t });
+        //     user.credentials.email = email
+        //     user.credentials.email_verification_token = emailVerificationToken
+        //     user.credentials.email_verification_expires = emailVerificationExpires
+        //     user.credentials.is_email_verified = false
+        //     await user.credentials.save({ transaction: t });
 
-            await sendVerificationEmail(email, emailVerificationToken);
-        }
+        //     await sendVerificationEmailUpdate(email, emailVerificationToken);
+        // }
 
         await t.commit();
 
