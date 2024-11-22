@@ -1,8 +1,8 @@
 const db = require('../models');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 const validator = require('validator');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();

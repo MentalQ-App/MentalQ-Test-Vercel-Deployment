@@ -1,5 +1,7 @@
 const db = require('../models');
 const { Users, Credentials } = db;
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -120,8 +122,8 @@ exports.updateUser = async (req, res) => {
         const updateData = {};
 
         if (req.file) {
-            const profileImageUrl = `/uploads/profiles/${req.file.filename}`;
-            updateData.profileImageUrl = profileImageUrl;
+            const profilePhotoUrl = `/uploads/profiles/${req.file.filename}`;
+            updateData.profile_photo_url = profilePhotoUrl;
         }
 
         if (email && email !== user.email) {
