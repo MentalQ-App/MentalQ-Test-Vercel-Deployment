@@ -1,8 +1,8 @@
 const db = require('../models');
 const { Users, Credentials } = db;
 const nodemailer = require('nodemailer');
+const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
-const { bucket } = require('../config/firebase');
 const { format } = require('util');
 const multer = require('multer');
 const path = require('path');
@@ -89,10 +89,15 @@ async function sendVerificationEmailUpdate(email, token) {
 //     }
 // });
 
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
 const storage = multer.memoryStorage();
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
         const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
         if (allowedTypes.includes(file.mimetype)) {
@@ -159,43 +164,40 @@ exports.updateUser = async (req, res) => {
         }
 
         if (req.file) {
-            const fileName = `profile-${user_id}-${Date.now()}${path.extname(req.file.originalname)}`;
-            const fileUpload = bucket.file(`profile-pictures/${fileName}`);
+            const fileExt = req.file.originalname.split('.').pop();
+            const fileName = `${user_id}-${Date.now()}.${fileExt}`;
+            const filePath = `profile-pictures/${fileName}`;
 
-            const blobStream = fileUpload.createWriteStream({
-                metadata: {
-                    contentType: req.file.mimetype
+            const { data: uploadData, error: uploadError } = await supabase
+                .storage
+                .from('profiles')
+                .upload(filePath, req.file.buffer, {
+                    contentType: req.file.mimetype,
+                    upsert: false
+                });
+
+            if (uploadError) {
+                throw new Error(`Error uploading file: ${uploadError.message}`);
+            }
+
+            const { data: { publicUrl } } = supabase
+                .storage
+                .from('profiles')
+                .getPublicUrl(filePath);
+
+            if (user.profile_photo_url) {
+                try {
+                    const oldFilePath = user.profile_photo_url.split('/').pop();
+                    await supabase
+                        .storage
+                        .from('profiles')
+                        .remove([`profile-pictures/${oldFilePath}`]);
+                } catch (error) {
+                    console.error('Error deleting old profile photo:', error);
                 }
-            });
+            }
 
-            await new Promise((resolve, reject) => {
-                blobStream.on('error', (error) => {
-                    reject(error);
-                });
-
-                blobStream.on('finish', async () => {
-                    await fileUpload.makePublic();
-                    
-                    const publicUrl = format(
-                        `https://storage.googleapis.com/${bucket.name}/${fileUpload.name}`
-                    );
-                    
-                    if (user.profile_photo_url) {
-                        try {
-                            const oldFileName = user.profile_photo_url.split('/').pop();
-                            const oldFile = bucket.file(`profile-pictures/${oldFileName}`);
-                            await oldFile.delete().catch(() => {});
-                        } catch (error) {
-                            console.error('Error deleting old profile photo:', error);
-                        }
-                    }
-
-                    updateData.profile_photo_url = publicUrl;
-                    resolve();
-                });
-
-                blobStream.end(req.file.buffer);
-            });
+            updateData.profile_photo_url = publicUrl;
         }
 
         if (name && name !== user.name) {
@@ -242,7 +244,8 @@ exports.updateUser = async (req, res) => {
             user: {
                 email: updatedUser.email,
                 name: updatedUser.name,
-                birthday: updatedUser.birthday
+                birthday: updatedUser.birthday,
+                profile_photo_url: updatedUser.profile_photo_url
             }
         });
     } catch (error) {
