@@ -90,7 +90,6 @@ exports.updateUser = async (req, res) => {
         const user = await Users.findOne({
             where: { 
                 user_id,
-                isActive: true 
             },
             include: "credentials",
             transaction: t
