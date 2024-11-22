@@ -161,6 +161,7 @@ exports.updateUser = async (req, res) => {
                     email,
                     email_verification_token: emailVerificationToken,
                     email_verification_expires: emailVerificationExpires,
+                    is_email_verified: false
                 },
                 { where: { user_id }, transaction }
             );
