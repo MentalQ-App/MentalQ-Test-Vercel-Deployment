@@ -8,7 +8,11 @@ const authenticateToken = require('../middleware/authenticateToken');
 const router = express.Router();
 
 // Update profile
-router.put('/users/update', authenticateToken, userController.uploadProfileImage, userController.updateUser);
+router.put('/users/update', authenticateToken, userController.uploadProfileImage, (req, res, next) => {
+    console.log(req.file);
+    console.log(req.body);
+    next();
+}, userController.updateUser);
 
 // Auth Routes
 router.post('/register', authController.registerUser);
