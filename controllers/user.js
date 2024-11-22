@@ -58,7 +58,14 @@ async function sendVerificationEmailUpdate(email, token) {
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const uploadPath = path.join(__dirname, '../uploads/profiles');
-        fs.mkdirSync(uploadPath, { recursive: true });
+        try {
+            if (!fs.existsSync(uploadPath)) {
+                fs.mkdirSync(uploadPath, { recursive: true });
+            }
+        } catch (err) {
+            console.error('Error creating directory:', err);
+            return cb(new Error('Failed to create upload directory.'));
+        }
         cb(null, uploadPath);
     },
     filename: (req, file, cb) => {
