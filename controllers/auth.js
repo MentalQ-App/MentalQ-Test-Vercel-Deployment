@@ -220,7 +220,8 @@ exports.loginUser = async (req, res) => {
         const safeUser = {
             email: user.email,
             name: user.name,
-            birthday: user.birthday
+            birthday: user.birthday,
+            profile_photo_url: user.profile_photo_url
         };
 
         res.status(200).json({ 
