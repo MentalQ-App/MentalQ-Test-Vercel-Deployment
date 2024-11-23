@@ -61,7 +61,7 @@ async function sendVerificationEmailUpdate(email, token) {
 const gcloudCreds = JSON.parse(process.env.GCLOUD_CREDENTIALS);
 
 const storage = new Storage({
-    keyFilename: gcloudCreds,
+    credentials: gcloudCreds,
     projectId: gcloudCreds.project_id
 });
 
