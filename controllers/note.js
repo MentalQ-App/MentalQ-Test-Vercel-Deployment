@@ -1,5 +1,5 @@
 const db = require('../models');
-const { Notes, Users } = db;
+const { Notes, Users, Analysis } = db;
 
 exports.createNote = async (req, res) => {
     const { title, content, emotion } = req.body;
@@ -221,6 +221,66 @@ exports.deleteNote = async (req, res) => {
         res.status(400).json({ 
             error: true, 
             message: error.message 
+        });
+    }
+};
+
+exports.analyzeDailyNotes = async (req, res) => {
+    const user_id = req.user_id;
+
+    try {
+        // Fetch user's daily notes
+        const dailyNotes = await Notes.findAll({
+            where: {
+                user_id,
+                isActive: true,
+                createdAt: {
+                    [db.Sequelize.Op.gte]: new Date(new Date().setHours(0, 0, 0, 0)),
+                },
+            },
+        });
+
+        if (dailyNotes.length === 0) {
+            return res.status(404).json({
+                error: true,
+                message: 'No daily notes found for analysis',
+            });
+        }
+
+        // Prepare the notes content for AI analysis
+        const content = dailyNotes.map((note) => note.content).join(' ');
+
+        // Make the AI service call
+        const aiResponse = await axios.post(
+            'https://<cloud-run-url>/analyze',
+            { content },
+            {
+                headers: { 'Content-Type': 'application/json' },
+            }
+        );
+
+        // Handle AI service response
+        const { predicted_status } = aiResponse.data;
+
+        // Save analysis results to the database
+        const newAnalysis = await Analysis.create({
+            entry_id: dailyNotes[0].entry_id, // Assuming linking with the first note of the day
+            predicted_status,
+            analysis_date: new Date(),
+        });
+
+        res.status(200).json({
+            error: false,
+            message: 'Analysis completed successfully',
+            analysis: newAnalysis,
+        });
+    } catch (error) {
+        console.error(error);
+
+        // Handle errors gracefully
+        res.status(500).json({
+            error: true,
+            message: error.response?.data?.message || error.message,
         });
     }
 };

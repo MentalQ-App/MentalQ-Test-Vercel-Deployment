@@ -7,7 +7,15 @@ const { format } = require('util');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { Storage } = require('@google-cloud/storage');
 require('dotenv').config();
+
+const gcloudCreds = JSON.parse(process.env.GCLOUD_CREDENTIALS);
+
+const storage = new Storage({
+    credentials: gcloudCreds,
+    projectId: gcloudCreds.project_id
+});
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -57,46 +65,11 @@ async function sendVerificationEmailUpdate(email, token) {
     await transporter.sendMail(mailOptions);
 }
 
-// const storage = multer.diskStorage({
-//     destination: (req, file, cb) => {
-//         const uploadPath = path.join(__dirname, '../uploads/profiles');
-//         try {
-//             if (!fs.existsSync(uploadPath)) {
-//                 fs.mkdirSync(uploadPath, { recursive: true });
-//             }
-//         } catch (err) {
-//             console.error('Error creating directory:', err);
-//             return cb(new Error('Failed to create upload directory.'));
-//         }
-//         cb(null, uploadPath);
-//     },
-//     filename: (req, file, cb) => {
-//         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-//         cb(null, `profile-${req.user_id}-${uniqueSuffix}${path.extname(file.originalname)}`);
-//     }
-// });
+const bucketName = process.env.BUCKET_NAME;
 
-// const upload = multer({ 
-//     storage: storage,
-//     limits: { fileSize: 5 * 1024 * 1024 },
-//     fileFilter: (req, file, cb) => {
-//         const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-//         if (allowedTypes.includes(file.mimetype)) {
-//             cb(null, true);
-//         } else {
-//             cb(new Error('Invalid file type. Only JPEG, PNG, and GIF are allowed.'));
-//         }
-//     }
-// });
-
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
-const storage = multer.memoryStorage();
+const multerStorage = multer.memoryStorage();
 const upload = multer({
-    storage: storage,
+    storage: multerStorage,
     limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
         const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
@@ -167,38 +140,34 @@ exports.updateUser = async (req, res) => {
             const fileExt = req.file.originalname.split('.').pop();
             const fileName = `${user_id}-${Date.now()}.${fileExt}`;
             const filePath = `profile-pictures/${fileName}`;
-
-            const { data: uploadData, error: uploadError } = await supabase
-                .storage
-                .from('profiles')
-                .upload(filePath, req.file.buffer, {
-                    contentType: req.file.mimetype,
-                    upsert: false
+        
+            const bucket = storage.bucket(bucketName);
+            const file = bucket.file(filePath);
+        
+            if (Buffer.isBuffer(req.file.buffer)) {
+                await file.save(req.file.buffer, {
+                    metadata: {
+                        contentType: req.file.mimetype
+                    }
                 });
-
-            if (uploadError) {
-                throw new Error(`Error uploading file: ${uploadError.message}`);
+            } else {
+                console.error('File buffer is not valid');
+                return;
             }
-
-            const { data: { publicUrl } } = supabase
-                .storage
-                .from('profiles')
-                .getPublicUrl(filePath);
-
+        
+            await file.makePublic();
+        
+            const publicUrl = `https://storage.googleapis.com/${bucketName}/${filePath}`;
+            
             if (user.profile_photo_url) {
-                try {
-                    const oldFilePath = user.profile_photo_url.split('/').pop();
-                    await supabase
-                        .storage
-                        .from('profiles')
-                        .remove([`profile-pictures/${oldFilePath}`]);
-                } catch (error) {
-                    console.error('Error deleting old profile photo:', error);
-                }
+                const oldFilePath = user.profile_photo_url.split('/').pop();
+                const oldFile = bucket.file(`profile-pictures/${oldFilePath}`);
+                await oldFile.delete().catch(err => console.error('Error deleting old profile photo:', err));
             }
-
+        
             updateData.profile_photo_url = publicUrl;
         }
+        
 
         if (name && name !== user.name) {
             updateData.name = name;
@@ -222,19 +191,6 @@ exports.updateUser = async (req, res) => {
         }
 
         const updatedUser = await user.update(updateData, { transaction: t });
-
-        // if (email && email !== user.email) {
-        //     const emailVerificationToken = crypto.randomBytes(32).toString('hex');
-        //     const emailVerificationExpires = Date.now() + 3600000;
-
-        //     user.credentials.email = email
-        //     user.credentials.email_verification_token = emailVerificationToken
-        //     user.credentials.email_verification_expires = emailVerificationExpires
-        //     user.credentials.is_email_verified = false
-        //     await user.credentials.save({ transaction: t });
-
-        //     await sendVerificationEmailUpdate(email, emailVerificationToken);
-        // }
 
         await t.commit();
 
