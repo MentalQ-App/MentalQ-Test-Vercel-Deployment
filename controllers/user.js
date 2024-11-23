@@ -140,27 +140,36 @@ exports.updateUser = async (req, res) => {
             const fileExt = req.file.originalname.split('.').pop();
             const fileName = `${user_id}-${Date.now()}.${fileExt}`;
             const filePath = `profile-pictures/${fileName}`;
+        
             const bucket = storage.bucket(bucketName);
             const file = bucket.file(filePath);
-
-            await file.save(req.file.buffer, {
-                metadata: {
-                    contentType: req.file.mimetype
-                }
-            });
-
+        
+            // Ensure req.file.buffer is a valid buffer before proceeding
+            if (Buffer.isBuffer(req.file.buffer)) {
+                await file.save(req.file.buffer, {
+                    metadata: {
+                        contentType: req.file.mimetype
+                    }
+                });
+            } else {
+                console.error('File buffer is not valid');
+                return;
+            }
+        
             await file.makePublic();
-
+        
             const publicUrl = `https://storage.googleapis.com/${bucketName}/${filePath}`;
             
+            // Delete the old file if a new profile photo exists
             if (user.profile_photo_url) {
                 const oldFilePath = user.profile_photo_url.split('/').pop();
                 const oldFile = bucket.file(`profile-pictures/${oldFilePath}`);
                 await oldFile.delete().catch(err => console.error('Error deleting old profile photo:', err));
             }
-
+        
             updateData.profile_photo_url = publicUrl;
         }
+        
 
         if (name && name !== user.name) {
             updateData.name = name;
