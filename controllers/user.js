@@ -151,7 +151,7 @@ exports.updateUser = async (req, res) => {
 
             await file.makePublic();
 
-            const publicUrl = format(`https://storage.googleapis.com/${bucketName}/${filePath}`);
+            const publicUrl = `https://storage.googleapis.com/${bucketName}/${filePath}`;
             
             if (user.profile_photo_url) {
                 const oldFilePath = user.profile_photo_url.split('/').pop();
