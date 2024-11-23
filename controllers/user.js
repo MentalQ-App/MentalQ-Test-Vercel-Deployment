@@ -10,6 +10,13 @@ const fs = require('fs');
 const { Storage } = require('@google-cloud/storage');
 require('dotenv').config();
 
+const gcloudCreds = JSON.parse(process.env.GCLOUD_CREDENTIALS);
+
+const storage = new Storage({
+    credentials: gcloudCreds,
+    projectId: gcloudCreds.project_id
+});
+
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -57,13 +64,6 @@ async function sendVerificationEmailUpdate(email, token) {
 
     await transporter.sendMail(mailOptions);
 }
-
-const gcloudCreds = JSON.parse(process.env.GCLOUD_CREDENTIALS);
-
-const storage = new Storage({
-    credentials: gcloudCreds,
-    projectId: gcloudCreds.project_id
-});
 
 const bucketName = process.env.BUCKET_NAME;
 
@@ -144,7 +144,6 @@ exports.updateUser = async (req, res) => {
             const bucket = storage.bucket(bucketName);
             const file = bucket.file(filePath);
         
-            // Ensure req.file.buffer is a valid buffer before proceeding
             if (Buffer.isBuffer(req.file.buffer)) {
                 await file.save(req.file.buffer, {
                     metadata: {
@@ -160,7 +159,6 @@ exports.updateUser = async (req, res) => {
         
             const publicUrl = `https://storage.googleapis.com/${bucketName}/${filePath}`;
             
-            // Delete the old file if a new profile photo exists
             if (user.profile_photo_url) {
                 const oldFilePath = user.profile_photo_url.split('/').pop();
                 const oldFile = bucket.file(`profile-pictures/${oldFilePath}`);
