@@ -390,11 +390,80 @@ exports.requestPasswordReset = [otpRequestLimiter, async (req, res) => {
     }
 }];
 
+exports.verifyOTP = [otpRequestLimiter, async (req, res) => {
+    const { email, otp } = req.body;
+    let t;
+
+    try {
+        if (!email || !otp) {
+            return res.status(400).json({
+                error: true,
+                message: 'Email and OTP are required',
+            });
+        }
+
+        if (!validator.isEmail(email)) {
+            return res.status(400).json({
+                error: true,
+                message: 'Invalid email format',
+            });
+        }
+
+        t = await db.sequelize.transaction();
+
+        const user = await Users.findOne({
+            where: { email },
+            transaction: t,
+        });
+
+        if (!user) {
+            await t.rollback();
+            return res.status(404).json({
+                error: true,
+                message: 'User not found',
+            });
+        }
+
+        const resetToken = await PasswordResetTokens.findOne({
+            where: {
+                user_id: user.user_id,
+                token: otp,
+                expiresAt: {
+                    [db.Sequelize.Op.gt]: new Date(),
+                },
+            },
+            transaction: t,
+        });
+
+        if (!resetToken) {
+            await t.rollback();
+            return res.status(400).json({
+                error: true,
+                message: 'Invalid or expired OTP',
+            });
+        }
+
+        await t.commit();
+
+        res.json({
+            error: false,
+            message: 'OTP verified successfully',
+        });
+    } catch (error) {
+        if (t) await t.rollback();
+        res.status(500).json({
+            error: true,
+            message: error.message,
+        });
+    }
+}];
+
 exports.resetPassword = async (req, res) => {
     const { email, otp, newPassword } = req.body;
     let t;
 
     try {
+        // Step 1: Validate input
         if (!email || !otp || !newPassword) {
             return res.status(400).json({
                 error: true,
@@ -420,12 +489,33 @@ exports.resetPassword = async (req, res) => {
             });
         }
 
-        t = await db.sequelize.transaction();
+        // Step 2: Start database transaction
+        try {
+            t = await db.sequelize.transaction();
+        } catch (error) {
+            console.error('Failed to start database transaction:', error);
+            return res.status(500).json({
+                error: true,
+                message: 'Failed to process the request. Please try again later.',
+            });
+        }
 
-        const user = await Users.findOne({
-            where: { email },
-            transaction: t,
-        });
+        // Step 3: Find user
+        let user;
+        try {
+            user = await Users.findOne({
+                where: { email },
+                include: 'credentials',
+                transaction: t,
+            });
+        } catch (error) {
+            console.error('Database error while finding user:', error);
+            await t.rollback();
+            return res.status(500).json({
+                error: true,
+                message: 'An error occurred while finding the user.',
+            });
+        }
 
         if (!user) {
             await t.rollback();
@@ -435,17 +525,29 @@ exports.resetPassword = async (req, res) => {
             });
         }
 
-        const resetToken = await PasswordResetTokens.findOne({
-            where: {
-                user_id: user.user_id,
-                expiresAt: {
-                    [db.Sequelize.Op.gt]: new Date(),
+        // Step 4: Validate reset token
+        let resetToken;
+        try {
+            resetToken = await PasswordResetTokens.findOne({
+                where: {
+                    user_id: user.user_id,
+                    token: otp,
+                    expiresAt: {
+                        [db.Sequelize.Op.gt]: new Date(),
+                    },
                 },
-            },
-            transaction: t,
-        });
+                transaction: t,
+            });
+        } catch (error) {
+            console.error('Database error while finding reset token:', error);
+            await t.rollback();
+            return res.status(500).json({
+                error: true,
+                message: 'An error occurred while validating the OTP.',
+            });
+        }
 
-        if (!resetToken || !(resetToken.token === otp)) {
+        if (!resetToken) {
             await t.rollback();
             return res.status(400).json({
                 error: true,
@@ -453,53 +555,94 @@ exports.resetPassword = async (req, res) => {
             });
         }
 
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(newPassword, salt);
+        // Step 5: Hash new password
+        let hashedPassword;
+        try {
+            const salt = await bcrypt.genSalt(10);
+            hashedPassword = await bcrypt.hash(newPassword, salt);
+        } catch (error) {
+            console.error('Error while hashing the password:', error);
+            await t.rollback();
+            return res.status(500).json({
+                error: true,
+                message: 'Failed to reset the password. Please try again later.',
+            });
+        }
 
-        await user.credentials.update(
-            { password: hashedPassword },
-            { transaction: t }
-        );
+        // Step 6: Update user credentials
+        try {
+            await user.credentials.update(
+                { password: hashedPassword },
+                { transaction: t }
+            );
+        } catch (error) {
+            console.error('Error while updating user credentials:', error);
+            await t.rollback();
+            return res.status(500).json({
+                error: true,
+                message: 'Failed to update the password. Please try again later.',
+            });
+        }
 
-        await PasswordResetTokens.destroy({
-            where: { user_id: user.user_id },
-            transaction: t,
-        });
+        // Step 7: Delete reset token
+        try {
+            await PasswordResetTokens.destroy({
+                where: { user_id: user.user_id },
+                transaction: t,
+            });
+        } catch (error) {
+            console.error('Error while deleting the reset token:', error);
+            await t.rollback();
+            return res.status(500).json({
+                error: true,
+                message: 'Failed to complete the password reset process.',
+            });
+        }
 
-        await t.commit();
+        // Step 8: Commit transaction
+        try {
+            await t.commit();
+        } catch (error) {
+            console.error('Error while committing the transaction:', error);
+            return res.status(500).json({
+                error: true,
+                message: 'An error occurred while finalizing the password reset.',
+            });
+        }
 
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: 'Password Reset Successful',
-            html: `
-                <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                    <div style="text-align: center; background-color: #f4f4f4; padding: 20px;">
-                        <h2 style="color: #555;">Password Reset Successful</h2>
-                    </div>
-                    <div style="padding: 20px; background-color: #fff; border: 1px solid #ddd;">
-                        <p>Hello,</p>
+        // Step 9: Send confirmation email
+        try {
+            const mailOptions = {
+                from: process.env.EMAIL_USER,
+                to: email,
+                subject: 'Password Reset Successful',
+                html: `
+                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                        <h2>Password Reset Successful</h2>
                         <p>Your password has been reset successfully. If you did not perform this action, please contact support immediately.</p>
-                        <p>Thank you,</p>
-                        <p>The Support Team</p>
                     </div>
-                    <div style="text-align: center; background-color: #f4f4f4; padding: 10px; color: #777; font-size: 12px;">
-                        <p>&copy; 2024 MentalQ. All rights reserved.</p>
-                    </div>
-                </div>
-            `,
-        };
-        await transporter.sendMail(mailOptions);
+                `,
+            };
+            await transporter.sendMail(mailOptions);
+        } catch (error) {
+            console.error('Error while sending confirmation email:', error);
+            return res.status(500).json({
+                error: true,
+                message: 'Password reset succeeded, but failed to send confirmation email.',
+            });
+        }
 
+        // Final response
         res.json({
             error: false,
             message: 'Password has been reset successfully',
         });
     } catch (error) {
+        console.error('Unhandled error during password reset:', error);
         if (t) await t.rollback();
         res.status(500).json({
             error: true,
-            message: 'An error occurred while resetting the password',
+            message: 'An unexpected error occurred while resetting the password.',
         });
     }
 };

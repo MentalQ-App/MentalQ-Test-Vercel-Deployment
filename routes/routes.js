@@ -18,7 +18,10 @@ router.put('/users/update', authenticateToken, userController.uploadProfileImage
 router.post('/register', authController.registerUser);
 router.get('/verify-email/:token', authController.verifyEmail);
 router.post('/login', authController.loginUser);
+
+// Password Reset Routes
 router.post('/request-reset', authController.requestPasswordReset);
+router.post('/verify-otp', authController.verifyOTP);
 router.post('/reset-password', authController.resetPassword);
 
 // Note Routes
