@@ -505,6 +505,7 @@ exports.resetPassword = async (req, res) => {
         try {
             user = await Users.findOne({
                 where: { email },
+                include: 'credentials',
                 transaction: t,
             });
         } catch (error) {
