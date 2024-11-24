@@ -390,6 +390,74 @@ exports.requestPasswordReset = [otpRequestLimiter, async (req, res) => {
     }
 }];
 
+exports.verifyOTP = [otpRequestLimiter, async (req, res) => {
+    const { email, otp } = req.body;
+    let t;
+
+    try {
+        if (!email || !otp) {
+            return res.status(400).json({
+                error: true,
+                message: 'Email and OTP are required',
+            });
+        }
+
+        if (!validator.isEmail(email)) {
+            return res.status(400).json({
+                error: true,
+                message: 'Invalid email format',
+            });
+        }
+
+        t = await db.sequelize.transaction();
+
+        const user = await Users.findOne({
+            where: { email },
+            transaction: t,
+        });
+
+        if (!user) {
+            await t.rollback();
+            return res.status(404).json({
+                error: true,
+                message: 'User not found',
+            });
+        }
+
+        const resetToken = await PasswordResetTokens.findOne({
+            where: {
+                user_id: user.user_id,
+                token: otp,
+                expiresAt: {
+                    [db.Sequelize.Op.gt]: new Date(),
+                },
+            },
+            transaction: t,
+        });
+
+        if (!resetToken) {
+            await t.rollback();
+            return res.status(400).json({
+                error: true,
+                message: 'Invalid or expired OTP',
+            });
+        }
+
+        await t.commit();
+
+        res.json({
+            error: false,
+            message: 'OTP verified successfully',
+        });
+    } catch (error) {
+        if (t) await t.rollback();
+        res.status(500).json({
+            error: true,
+            message: error.message,
+        });
+    }
+}];
+
 exports.resetPassword = async (req, res) => {
     const { email, otp, newPassword } = req.body;
     let t;
@@ -438,6 +506,7 @@ exports.resetPassword = async (req, res) => {
         const resetToken = await PasswordResetTokens.findOne({
             where: {
                 user_id: user.user_id,
+                token: otp,
                 expiresAt: {
                     [db.Sequelize.Op.gt]: new Date(),
                 },
@@ -445,7 +514,7 @@ exports.resetPassword = async (req, res) => {
             transaction: t,
         });
 
-        if (!resetToken || !(resetToken.token === otp)) {
+        if (!resetToken) {
             await t.rollback();
             return res.status(400).json({
                 error: true,
