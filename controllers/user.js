@@ -1,7 +1,6 @@
 const db = require('../models');
 const { Users, Credentials } = db;
 const nodemailer = require('nodemailer');
-const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
 const { format } = require('util');
 const multer = require('multer');
