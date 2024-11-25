@@ -40,8 +40,6 @@ exports.createNote = async (req, res) => {
 
         await t.commit();
 
-        analyzeNotes(user_id);
-
         res.status(201).json({
             error: false,
             message: 'Note created successfully',
@@ -237,11 +235,11 @@ const analyzeNotes = async (user_id) => {
             where: {
                 user_id,
                 isActive: true,
-                createdAt: {
+                updatedAt: {
                     [db.Sequelize.Op.gte]: new Date(new Date().setHours(0, 0, 0, 0)),
                 },
             },
-            order: [['createdAt', 'DESC']],
+            order: [['updatedAt', 'DESC']],
             limit: 1,
         });
 
