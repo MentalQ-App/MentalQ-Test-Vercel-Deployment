@@ -241,6 +241,8 @@ const analyzeNotes = async (user_id) => {
                     [db.Sequelize.Op.gte]: new Date(new Date().setHours(0, 0, 0, 0)),
                 },
             },
+            order: [['createdAt', 'DESC']],
+            limit: 1,
         });
 
         if (dailyNotes.length === 0) {
