@@ -184,7 +184,9 @@ exports.updateUser = async (req, res) => {
                 user: {
                     email: user.email,
                     name: user.name,
-                    birthday: user.birthday
+                    birthday: user.birthday,
+                    profile_photo_url: user.profile_photo_url,
+                    role: user.credentials.role
                 }
             });
         }
@@ -200,7 +202,8 @@ exports.updateUser = async (req, res) => {
                 email: updatedUser.email,
                 name: updatedUser.name,
                 birthday: updatedUser.birthday,
-                profile_photo_url: updatedUser.profile_photo_url
+                profile_photo_url: updatedUser.profile_photo_url,
+                role: user.credentials.role
             }
         });
     } catch (error) {
