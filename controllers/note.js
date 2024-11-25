@@ -252,7 +252,7 @@ const analyzeNotes = async (user_id) => {
 
         const aiResponse = await axios.post(
             process.env.CLOUDRUNAPI + '/predict',
-            { content },
+            { data: [content] },
             {
                 headers: { 'Content-Type': 'application/json' },
             }
@@ -261,7 +261,8 @@ const analyzeNotes = async (user_id) => {
         const { predicted_status } = aiResponse.data[0];
 
         const newAnalysis = await Analysis.create({
-            predicted_status,
+            note_id: dailyNotes[0].note_id,
+            predicted_status: predicted_status,
         });
 
         console.log('Analysis completed successfully:', newAnalysis);
