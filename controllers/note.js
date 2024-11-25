@@ -1,7 +1,7 @@
 const db = require('../models');
 const { Notes, Users, Analysis } = db;
 require('dotenv').config();
-import axios from 'axios';
+const axios = require('axios');
 
 exports.createNote = async (req, res) => {
     const { title, content, emotion } = req.body;
