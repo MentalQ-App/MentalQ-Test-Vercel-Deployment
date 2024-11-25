@@ -3,14 +3,11 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('analysis', {
-      id: {
+      analysis_id: {
+        type: Sequelize.INTEGER,
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
-        type: Sequelize.INTEGER
-      },
-      analysis_id: {
-        type: Sequelize.INTEGER
       },
       note_id: {
         type: Sequelize.INTEGER
@@ -29,6 +26,6 @@ module.exports = {
     });
   },
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('Analyses');
+    await queryInterface.dropTable('analysis');
   }
 };

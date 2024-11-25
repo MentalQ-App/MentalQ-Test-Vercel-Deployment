@@ -1,5 +1,7 @@
 const db = require('../models');
 const { Notes, Users, Analysis } = db;
+require('dotenv').config();
+import axios from 'axios';
 
 exports.createNote = async (req, res) => {
     const { title, content, emotion } = req.body;
@@ -37,6 +39,8 @@ exports.createNote = async (req, res) => {
         );
 
         await t.commit();
+
+        analyzeNotes(user_id);
 
         res.status(201).json({
             error: false,
@@ -167,6 +171,8 @@ exports.updateNote = async (req, res) => {
 
         await t.commit();
 
+        analyzeNotes(user_id);
+
         res.status(200).json({
             error: false,
             message: 'Note updated successfully',
@@ -225,11 +231,8 @@ exports.deleteNote = async (req, res) => {
     }
 };
 
-exports.analyzeDailyNotes = async (req, res) => {
-    const user_id = req.user_id;
-
+const analyzeNotes = async (user_id) => {
     try {
-        // Fetch user's daily notes
         const dailyNotes = await Notes.findAll({
             where: {
                 user_id,
@@ -241,46 +244,93 @@ exports.analyzeDailyNotes = async (req, res) => {
         });
 
         if (dailyNotes.length === 0) {
-            return res.status(404).json({
-                error: true,
-                message: 'No daily notes found for analysis',
-            });
+            console.log('No daily notes found for analysis');
+            return null;
         }
 
-        // Prepare the notes content for AI analysis
         const content = dailyNotes.map((note) => note.content).join(' ');
 
-        // Make the AI service call
         const aiResponse = await axios.post(
-            'https://<cloud-run-url>/analyze',
+            process.env.CLOUDRUNAPI + '/predict',
             { content },
             {
                 headers: { 'Content-Type': 'application/json' },
             }
         );
 
-        // Handle AI service response
-        const { predicted_status } = aiResponse.data;
+        const { predicted_status } = aiResponse.data[0];
 
-        // Save analysis results to the database
         const newAnalysis = await Analysis.create({
-            entry_id: dailyNotes[0].entry_id, // Assuming linking with the first note of the day
             predicted_status,
-            analysis_date: new Date(),
         });
 
-        res.status(200).json({
-            error: false,
-            message: 'Analysis completed successfully',
-            analysis: newAnalysis,
-        });
+        console.log('Analysis completed successfully:', newAnalysis);
+        return newAnalysis;
     } catch (error) {
-        console.error(error);
-
-        // Handle errors gracefully
-        res.status(500).json({
-            error: true,
-            message: error.response?.data?.message || error.message,
-        });
+        console.error('Error analyzing notes:', error.message);
+        console.error(error.stack);
+        return null;
     }
 };
+
+
+
+// exports.analyzeDailyNotes = async (req, res) => {
+//     const user_id = req.user_id;
+
+//     try {
+//         // Fetch user's daily notes
+//         const dailyNotes = await Notes.findAll({
+//             where: {
+//                 user_id,
+//                 isActive: true,
+//                 createdAt: {
+//                     [db.Sequelize.Op.gte]: new Date(new Date().setHours(0, 0, 0, 0)),
+//                 },
+//             },
+//         });
+
+//         if (dailyNotes.length === 0) {
+//             return res.status(404).json({
+//                 error: true,
+//                 message: 'No daily notes found for analysis',
+//             });
+//         }
+
+//         // Prepare the notes content for AI analysis
+//         const content = dailyNotes.map((note) => note.content).join(' ');
+
+//         // Make the AI service call
+//         const aiResponse = await axios.post(
+//             process.env.CLOUDRUNAPI + '/predict',
+//             { content },
+//             {
+//                 headers: { 'Content-Type': 'application/json' },
+//             }
+//         );
+
+//         // Handle AI service response
+//         const { predicted_status } = aiResponse.data;
+
+//         // Save analysis results to the database
+//         const newAnalysis = await Analysis.create({
+//             entry_id: dailyNotes[0].entry_id, // Assuming linking with the first note of the day
+//             predicted_status,
+//             analysis_date: new Date(),
+//         });
+
+//         res.status(200).json({
+//             error: false,
+//             message: 'Analysis completed successfully',
+//             analysis: newAnalysis,
+//         });
+//     } catch (error) {
+//         console.error(error);
+
+//         // Handle errors gracefully
+//         res.status(500).json({
+//             error: true,
+//             message: error.response?.data?.message || error.message,
+//         });
+//     }
+// };
