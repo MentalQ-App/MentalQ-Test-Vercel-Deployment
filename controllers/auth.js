@@ -221,7 +221,8 @@ exports.loginUser = async (req, res) => {
             email: user.email,
             name: user.name,
             birthday: user.birthday,
-            profile_photo_url: user.profile_photo_url
+            profile_photo_url: user.profile_photo_url,
+            role: user.credentials.role
         };
 
         res.status(200).json({ 
