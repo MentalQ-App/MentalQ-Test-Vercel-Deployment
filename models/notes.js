@@ -12,6 +12,10 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'user_id',
         as: 'user', 
       });
+      Notes.hasOne(models.Analysis, {
+        foreignKey: 'note_id',
+        as: 'analysis',
+      });
     }
   }
 

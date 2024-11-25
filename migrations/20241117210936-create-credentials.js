@@ -24,6 +24,9 @@ module.exports = {
       is_email_verified: {
         type: Sequelize.BOOLEAN
       },
+      role: {
+        type: Sequelize.ENUM('user', 'psychologist')
+      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE

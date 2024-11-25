@@ -10,13 +10,33 @@ module.exports = (sequelize, DataTypes) => {
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      // define association here
+      Analysis.belongsTo(models.Notes, {
+        foreignKey: 'note_id',
+        as: 'note', 
+      });
     }
   }
   Analysis.init({
-    analysis_id: DataTypes.INTEGER,
-    note_id: DataTypes.INTEGER,
-    predicted_status: DataTypes.STRING
+    analysis_id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+      field: 'analysis_id',
+    },
+    note_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'notes',
+        key: 'note_id',
+      },
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
+    },
+    predicted_status: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    }
   }, {
     sequelize,
     modelName: 'Analysis',
