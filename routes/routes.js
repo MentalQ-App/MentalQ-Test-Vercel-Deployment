@@ -4,7 +4,6 @@ const userController = require('../controllers/user');
 const noteController = require('../controllers/note');
 const authController = require('../controllers/auth');
 const analysisController = require('../controllers/analysis');
-const chatController = require('../controllers/chat');
 const authenticateToken = require('../middleware/authenticateToken');
 
 const router = express.Router();
@@ -35,10 +34,5 @@ router.put('/notes/delete/:id', authenticateToken, noteController.deleteNote);
 
 // Analysis Routes
 router.get('/analysis', authenticateToken, analysisController.getAnalysis);
-
-// Chat Routes
-router.post('/chats/send', authenticateToken, chatController.sendMessage);
-router.get('/chats/history/:other_user_id', authenticateToken, chatController.getChatsHistory);
-router.get('/chats/recent', authenticateToken, chatController.getRecentChats);
 
 module.exports = router;
