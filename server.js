@@ -4,6 +4,7 @@ const userRoutes = require('./routes/routes');
 const config = require('./config/config');
 const db = require('./models');
 const socketIo = require('socket.io');
+const http = require('http');
 const jwt = require('jsonwebtoken');
 const initializeSocketIO = require('./handler/socket-io-handler');
 
