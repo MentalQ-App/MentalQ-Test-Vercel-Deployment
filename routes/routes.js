@@ -37,8 +37,8 @@ router.put('/notes/delete/:id', authenticateToken, noteController.deleteNote);
 router.get('/analysis', authenticateToken, analysisController.getAnalysis);
 
 // Chat Routes
-router.post('/chats/send', authMiddleware, chatController.sendMessage);
-router.get('/chats/history/:other_user_id', authMiddleware, chatController.getChatsHistory);
-router.get('/chats/recent', authMiddleware, chatController.getRecentChats);
+router.post('/chats/send', authenticateToken, chatController.sendMessage);
+router.get('/chats/history/:other_user_id', authenticateToken, chatController.getChatsHistory);
+router.get('/chats/recent', authenticateToken, chatController.getRecentChats);
 
 module.exports = router;
