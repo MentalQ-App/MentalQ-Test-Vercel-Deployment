@@ -1,6 +1,6 @@
 const socketIo = require('socket.io');
 const jwt = require('jsonwebtoken');
-const { Chats } = require('./models');
+const { Chats } = require('../models');
 require('dotenv').config();
 
 function initializeSocketIO(server) {
