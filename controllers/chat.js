@@ -146,12 +146,12 @@ exports.getRecentChats = async (req, res) => {
       },
       include: [
         {
-          model: User,
+          model: Users,
           as: 'Sender',
           attributes: ['user_id', 'name', 'profile_photo_url']
         },
         {
-          model: User,
+          model: Users,
           as: 'Receiver',
           attributes: ['user_id', 'name', 'profile_photo_url']
         }
