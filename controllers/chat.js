@@ -129,13 +129,13 @@ exports.getChatsHistory = async (req, res) => {
 };
 
 exports.getRecentChats = async (req, res) => {
-  const current_user_id = req.user_id;
+  const current_user_id = req.user.user_id;
 
   try {
     const recentChats = await Chats.findAll({
       attributes: [
-        [sequelize.fn('MAX', sequelize.col('createdAt')), 'last_message_time'],
-        [sequelize.fn('MAX', sequelize.col('chat_id')), 'last_message_id'],
+        [sequelize.fn('MAX', sequelize.col('Chats.created_at')), 'last_message_time'],
+        [sequelize.fn('MAX', sequelize.col('Chats.chat_id')), 'last_message_id'],
         'sender_id',
         'receiver_id'
       ],
@@ -147,22 +147,24 @@ exports.getRecentChats = async (req, res) => {
       },
       include: [
         {
-          model: Users,
+          model: User,
           as: 'Sender',
           attributes: ['user_id', 'name', 'profile_photo_url']
         },
         {
-          model: Users,
+          model: User,
           as: 'Receiver',
           attributes: ['user_id', 'name', 'profile_photo_url']
         }
       ],
-      group: ['sender_id', 'receiver_id', 
-        'Sender.user_id', 'Sender.name', 'Sender.profile_photo_url',
-        'Receiver.user_id', 'Receiver.name', 'Receiver.profile_photo_url'
+      group: [
+        'Chats.sender_id', 
+        'Chats.receiver_id', 
+        'Sender.user_id', 
+        'Receiver.user_id'
       ],
       order: [[sequelize.col('last_message_time'), 'DESC']],
-      raw: true
+      raw: false
     });
 
     res.status(200).json({
