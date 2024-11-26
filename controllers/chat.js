@@ -133,7 +133,7 @@ exports.getRecentChats = async (req, res) => {
   try {
     const recentChats = await Chats.findAll({
       attributes: [
-        [sequelize.fn('MAX', sequelize.col('Chats.created_at')), 'last_message_time'],
+        [sequelize.fn('MAX', sequelize.col('Chats.createdAt')), 'last_message_time'],
         [sequelize.fn('MAX', sequelize.col('Chats.chat_id')), 'last_message_id'],
         'sender_id',
         'receiver_id'
