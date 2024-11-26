@@ -6,7 +6,7 @@ require('dotenv').config();
 
 function initializeSocketIO(server) {
   const io = socketIo(server, {
-    path: '/socket.io/',
+    path: '/socket.io',
     cors: {
       origin: "*",
       methods: ["GET", "POST"],
