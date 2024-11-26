@@ -88,7 +88,7 @@ exports.getChatsHistory = async (req, res) => {
           }
         ]
       },
-      order: [['created_at', 'ASC']],
+      order: [['createdAt', 'ASC']],
       include: [
         { 
           model: Users, 
@@ -134,7 +134,7 @@ exports.getRecentChats = async (req, res) => {
   try {
     const recentChats = await Chats.findAll({
       attributes: [
-        [sequelize.fn('MAX', sequelize.col('created_at')), 'last_message_time'],
+        [sequelize.fn('MAX', sequelize.col('createdAt')), 'last_message_time'],
         [sequelize.fn('MAX', sequelize.col('chat_id')), 'last_message_id'],
         'sender_id',
         'receiver_id'
