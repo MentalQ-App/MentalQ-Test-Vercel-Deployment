@@ -56,7 +56,7 @@ async function startServer() {
         console.log('Database synced');
 
         // Start the server
-        app.listen(port, host, () => {
+        server.listen(port, host, () => {
             console.log(`Server is running on ${host}:${port}`);
         });
 
