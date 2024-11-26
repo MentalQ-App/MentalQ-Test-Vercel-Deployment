@@ -12,19 +12,13 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+const server = http.createServer(app);
+const io = initializeSocketIO(server);
 app.use((req, res, next) => {
   req.io = io;
   next();
 });
-app.set('views', path.join(__dirname, 'views'));
-app.use('/uploads/profiles', (req, res, next) => {
-    if (!req.user_id) {
-        return res.status(403).send('Access denied');
-    }
-    next();
-}, express.static(path.join(__dirname, '../uploads/profiles')));
-const server = http.createServer(app);
-const io = initializeSocketIO(server);
 
 // Routes
 app.use('/api', userRoutes);
