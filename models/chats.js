@@ -6,11 +6,11 @@ module.exports = (sequelize, DataTypes) => {
   class Chats extends Model {
     static associate(models) {
       // Define associations
-      Chats.belongsTo(models.User, { 
+      Chats.belongsTo(models.Users, { 
         as: 'Sender', 
         foreignKey: 'sender_id' 
       });
-      Chats.belongsTo(models.User, { 
+      Chats.belongsTo(models.Users, { 
         as: 'Receiver', 
         foreignKey: 'receiver_id' 
       });
