@@ -33,23 +33,21 @@ function initializeSocketIO(server) {
   io.on('connection', (socket) => {
     console.log('User connected:', socket.userId);
 
-    socket.join(socket.userId);
-
     socket.on('chat_message', async (data) => {
-      try {
-        const newMessage = await Chats.create({
-          sender_id: socket.userId,
-          receiver_id: data.receiver_id,
-          message: data.message
-        });
+        try {
+            const newMessage = await Chats.create({
+                sender_id: socket.userId,
+                receiver_id: data.receiverId,
+                message: data.message
+            });
 
-        io.to(data.receiver_id).emit('new_message', {
-          ...newMessage.toJSON(),
-          sender_id: socket.userId
-        });
-      } catch (error) {
-        console.error('Error handling chat message:', error);
-      }
+            io.to(data.receiverId).emit('new_message', {
+                ...newMessage.toJSON(),
+                sender_id: socket.userId
+            });
+        } catch (error) {
+            console.error('Error handling chat message:', error);
+        }
     });
 
     socket.on('typing', (data) => {
