@@ -10,7 +10,6 @@ exports.sendMessage = async (req, res) => {
   try {
     t = await sequelize.transaction();
 
-
     const receiver = await Users.findByPk(receiver_id, { transaction: t });
     if (!receiver) {
       await t.rollback();
@@ -37,14 +36,6 @@ exports.sendMessage = async (req, res) => {
     }, { transaction: t });
 
     await t.commit();
-
-    const io = req.app.get('io');
-    if (io) {
-      io.to(receiver_id).emit('new_message', {
-        ...newMessage.toJSON(),
-        sender_id
-      });
-    }
 
     res.status(201).json({
       error: false,
