@@ -12,8 +12,11 @@ function initializeSocketIO(server) {
       methods: ["GET", "POST"],
       allowedHeaders: ["Authorization", "Content-Type"],
       credentials: true
-    }
+    },
+    serveClient: false,
+    transports: ['websocket', 'polling']
   });
+
   io.use((socket, next) => {
     console.log('Socket connection attempt');
     console.log('Handshake auth:', socket.handshake.auth);
