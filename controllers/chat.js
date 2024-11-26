@@ -1,6 +1,6 @@
 const { Chats, Users } = require('../models');
 const { Op } = require('sequelize');
-const sequelize = require('../models').sequelize; // Make sure to import sequelize
+const sequelize = require('../models').sequelize;
 
 exports.sendMessage = async (req, res) => {
   const { receiver_id, message, attachment_url } = req.body;
@@ -10,7 +10,7 @@ exports.sendMessage = async (req, res) => {
   try {
     t = await sequelize.transaction();
 
-    // Validate receiver exists
+
     const receiver = await Users.findByPk(receiver_id, { transaction: t });
     if (!receiver) {
       await t.rollback();
@@ -20,7 +20,6 @@ exports.sendMessage = async (req, res) => {
       });
     }
 
-    // Validate message is not empty
     if (!message && !attachment_url) {
       await t.rollback();
       return res.status(400).json({
@@ -129,7 +128,7 @@ exports.getChatsHistory = async (req, res) => {
 };
 
 exports.getRecentChats = async (req, res) => {
-  const current_user_id = req.user.user_id;
+  const current_user_id = req.user_id;
 
   try {
     const recentChats = await Chats.findAll({
