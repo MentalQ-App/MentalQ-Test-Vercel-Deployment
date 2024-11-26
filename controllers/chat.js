@@ -1,4 +1,4 @@
-const { Chats, User } = require('../models');
+const { Chats, Users } = require('../models');
 const { Op } = require('sequelize');
 const sequelize = require('../models').sequelize; // Make sure to import sequelize
 
@@ -11,7 +11,7 @@ exports.sendMessage = async (req, res) => {
     t = await sequelize.transaction();
 
     // Validate receiver exists
-    const receiver = await User.findByPk(receiver_id, { transaction: t });
+    const receiver = await Users.findByPk(receiver_id, { transaction: t });
     if (!receiver) {
       await t.rollback();
       return res.status(404).json({ 
@@ -67,11 +67,11 @@ exports.getChatsHistory = async (req, res) => {
   const current_user_id = req.user_id;
 
   try {
-    const otherUser = await User.findByPk(other_user_id);
-    if (!otherUser) {
+    const otherUsers = await Users.findByPk(other_user_id);
+    if (!otherUsers) {
       return res.status(404).json({
         error: true,
-        message: 'User not found'
+        message: 'Users not found'
       });
     }
 
@@ -91,12 +91,12 @@ exports.getChatsHistory = async (req, res) => {
       order: [['created_at', 'ASC']],
       include: [
         { 
-          model: User, 
+          model: Users, 
           as: 'Sender', 
           attributes: ['user_id', 'name', 'profile_photo_url'] 
         },
         { 
-          model: User, 
+          model: Users, 
           as: 'Receiver', 
           attributes: ['user_id', 'name', 'profile_photo_url'] 
         }
@@ -147,12 +147,12 @@ exports.getRecentChats = async (req, res) => {
       },
       include: [
         {
-          model: User,
+          model: Users,
           as: 'Sender',
           attributes: ['user_id', 'name', 'profile_photo_url']
         },
         {
-          model: User,
+          model: Users,
           as: 'Receiver',
           attributes: ['user_id', 'name', 'profile_photo_url']
         }
