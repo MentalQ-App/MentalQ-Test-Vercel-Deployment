@@ -3,6 +3,7 @@
     "@google-cloud/storage": "^7.14.0",
     "axios": "^1.7.7",
     "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "dotenv": "^16.4.5",
     "ejs": "^3.1.10",
@@ -16,6 +17,7 @@
     "pg": "^8.13.1",
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.37.5",
+    "socket.io": "^4.8.1",
     "validator": "^13.12.0"
   },
   "scripts": {
