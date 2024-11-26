@@ -3,11 +3,17 @@ const path = require('path');
 const userRoutes = require('./routes/routes');
 const config = require('./config/config');
 const db = require('./models');
+const socketIo = require('socket.io');
+const jwt = require('jsonwebtoken');
+const initializeSocketIO = require('./handler/socket-io-handler');
 
 const app = express();
+const server = http.createServer(app);
+const io = initializeSocketIO(server);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.set('view engine', 'ejs');
+
 
 // Routes
 app.use('/api', userRoutes);
@@ -18,6 +24,10 @@ app.use('/uploads/profiles', (req, res, next) => {
     }
     next();
 }, express.static(path.join(__dirname, '../uploads/profiles')));
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 
 
 const port = process.env.PORT || 3000;

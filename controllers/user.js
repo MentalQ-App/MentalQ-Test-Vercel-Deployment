@@ -2,10 +2,7 @@ const db = require('../models');
 const { Users, Credentials } = db;
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
-const { format } = require('util');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const { Storage } = require('@google-cloud/storage');
 require('dotenv').config();
 
@@ -182,6 +179,7 @@ exports.updateUser = async (req, res) => {
                 error: false,
                 message: 'No changes to update',
                 user: {
+                    user_id: user.user_id,
                     email: user.email,
                     name: user.name,
                     birthday: user.birthday,
@@ -199,6 +197,7 @@ exports.updateUser = async (req, res) => {
             error: false,
             message: 'User updated successfully',
             user: {
+                user_id: updatedUser.user_id,
                 email: updatedUser.email,
                 name: updatedUser.name,
                 birthday: updatedUser.birthday,

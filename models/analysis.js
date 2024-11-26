@@ -36,7 +36,7 @@ module.exports = (sequelize, DataTypes) => {
     predicted_status: {
       type: DataTypes.STRING,
       allowNull: true,
-    }
+    },
   }, {
     sequelize,
     modelName: 'Analysis',
