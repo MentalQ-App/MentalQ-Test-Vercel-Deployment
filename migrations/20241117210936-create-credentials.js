@@ -15,6 +15,9 @@ module.exports = {
       password: {
         type: Sequelize.STRING
       },
+      firebase_uid: {
+        type: Sequelize.STRING
+      },
       email_verification_token: {
         type: Sequelize.STRING
       },
