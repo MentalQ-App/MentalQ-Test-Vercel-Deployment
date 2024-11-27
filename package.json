@@ -21,7 +21,7 @@
   "scripts": {
     "start": "node server.js",
     "migrate": "npx sequelize-cli db:migrate",
-    "rollback": "npx sequelize-cli db:migrate:undo all"
+    "rollback": "npx sequelize-cli db:migrate:undo:all"
   },
   "devDependencies": {
     "sequelize-cli": "^6.6.2"

@@ -218,6 +218,7 @@ exports.loginUser = async (req, res) => {
         await t.commit();
 
         const safeUser = {
+            user_id: user.user_id,
             email: user.email,
             name: user.name,
             birthday: user.birthday,
