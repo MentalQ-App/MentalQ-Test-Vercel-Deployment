@@ -19,7 +19,7 @@ router.put('/users/update', authenticateToken, userController.uploadProfileImage
 router.post('/register', authController.registerUser);
 router.get('/verify-email/:token', authController.verifyEmail);
 router.post('/login', authController.loginUser);
-router.post('/google-login', authController.firebaseAuth);
+router.post('/google-login', authController.authFirebase);
 
 // Password Reset Routes
 router.post('/request-reset', authController.requestPasswordReset);
