@@ -243,6 +243,20 @@ exports.loginUser = async (req, res) => {
     }
 };
 
+// // Inisalisasi firebase dlu brok cihuy (non-vercel)
+// const serviceAccount = require('../firebase-admin-sdk.json');
+
+// admin.initializeApp({
+//     credential: admin.credential.cert(serviceAccount)
+// });
+
+const firebaseCreds = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+
+admin.initializeApp({
+    credential: admin.credential.cert(firebaseCreds)
+  });
+
+
 exports.authFirebase = async (req, res) => {
     const { firebaseToken } = req.body;
 
