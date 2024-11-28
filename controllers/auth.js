@@ -243,11 +243,26 @@ exports.loginUser = async (req, res) => {
     }
 };
 
+// // Inisalisasi firebase dlu brok cihuy (non-vercel)
+// const serviceAccount = require('../firebase-admin-sdk.json');
+
+// admin.initializeApp({
+//     credential: admin.credential.cert(serviceAccount)
+// });
+
+const firebaseCreds = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+
+admin.initializeApp({
+    credential: admin.credential.cert(firebaseCreds),
+    projectId: firebaseCreds.project_id
+  });
+
+
 exports.authFirebase = async (req, res) => {
     const { firebaseToken } = req.body;
 
     try{
-        const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+        const decodedToken = await admin.auth().verifyIdToken(firebaseToken, true);
         const { email, name, picture } = decodedToken;
 
         let user = await Users.findOne({
@@ -260,8 +275,10 @@ exports.authFirebase = async (req, res) => {
 
             const newCredentials = await Credentials.create(
                 { 
-                    email, 
-                    firebase_uid: decodedToken.uid 
+                    email: email, 
+                    firebase_uid: decodedToken.uid,
+                    is_email_verified: true,
+                    role: 'user'
                 },
                 { transaction: t }
             );
