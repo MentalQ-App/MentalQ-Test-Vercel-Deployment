@@ -277,6 +277,7 @@ exports.authFirebase = async (req, res) => {
                 { 
                     email: email, 
                     firebase_uid: decodedToken.uid,
+                    is_email_verified: true,
                     role: 'user'
                 },
                 { transaction: t }
