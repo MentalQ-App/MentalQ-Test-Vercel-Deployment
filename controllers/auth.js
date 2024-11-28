@@ -275,8 +275,9 @@ exports.authFirebase = async (req, res) => {
 
             const newCredentials = await Credentials.create(
                 { 
-                    email, 
-                    firebase_uid: decodedToken.uid 
+                    email: email, 
+                    firebase_uid: decodedToken.uid,
+                    role: 'user'
                 },
                 { transaction: t }
             );
