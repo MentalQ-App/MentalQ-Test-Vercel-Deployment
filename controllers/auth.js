@@ -253,7 +253,8 @@ exports.loginUser = async (req, res) => {
 const firebaseCreds = JSON.parse(process.env.FIREBASE_CREDENTIALS);
 
 admin.initializeApp({
-    credential: admin.credential.cert(firebaseCreds)
+    credential: admin.credential.cert(firebaseCreds),
+    projectId: firebaseCreds.project_id
   });
 
 
@@ -261,7 +262,7 @@ exports.authFirebase = async (req, res) => {
     const { firebaseToken } = req.body;
 
     try{
-        const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+        const decodedToken = await admin.auth().verifyIdToken(firebaseToken, true);
         const { email, name, picture } = decodedToken;
 
         let user = await Users.findOne({
