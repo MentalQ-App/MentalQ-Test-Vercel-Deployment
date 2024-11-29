@@ -324,49 +324,6 @@ exports.authFirebase = async (req, res) => {
     }
 };
 
-exports.logoutUser = async (req, res) => {
-    const authHeader = req.headers['authorization'];
-    let t;
-
-    try {
-        if (!authHeader) {
-            return res.status(401).json({ 
-                error: true, 
-                message: 'Authorization header missing' 
-            });
-        }
-
-        const token = authHeader.split(' ')[1];
-        t = await db.sequelize.transaction();
-
-        const result = await UserSessions.destroy({ 
-            where: { session_token: token }, 
-            transaction: t 
-        });
-
-        if (result === 0) {
-            await t.rollback();
-            return res.status(404).json({ 
-                error: true, 
-                message: 'Session not found' 
-            });
-        }
-
-        await t.commit();
-
-        res.json({ 
-            error: false,
-            message: 'User logged out successfully' 
-        });
-    } catch (error) {
-        if (t) await t.rollback();
-        res.status(400).json({ 
-            error: true, 
-            message: error.message 
-        });
-    }
-};
-
 const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
@@ -547,7 +504,6 @@ exports.resetPassword = async (req, res) => {
     let t;
 
     try {
-        // Step 1: Validate input
         if (!email || !otp || !newPassword) {
             return res.status(400).json({
                 error: true,
@@ -573,7 +529,6 @@ exports.resetPassword = async (req, res) => {
             });
         }
 
-        // Step 2: Start database transaction
         try {
             t = await db.sequelize.transaction();
         } catch (error) {
@@ -584,7 +539,6 @@ exports.resetPassword = async (req, res) => {
             });
         }
 
-        // Step 3: Find user
         let user;
         try {
             user = await Users.findOne({
@@ -609,7 +563,6 @@ exports.resetPassword = async (req, res) => {
             });
         }
 
-        // Step 4: Validate reset token
         let resetToken;
         try {
             resetToken = await PasswordResetTokens.findOne({
@@ -639,7 +592,6 @@ exports.resetPassword = async (req, res) => {
             });
         }
 
-        // Step 5: Hash new password
         let hashedPassword;
         try {
             const salt = await bcrypt.genSalt(10);
@@ -653,7 +605,6 @@ exports.resetPassword = async (req, res) => {
             });
         }
 
-        // Step 6: Update user credentials
         try {
             await user.credentials.update(
                 { password: hashedPassword },
@@ -668,7 +619,6 @@ exports.resetPassword = async (req, res) => {
             });
         }
 
-        // Step 7: Delete reset token
         try {
             await PasswordResetTokens.destroy({
                 where: { user_id: user.user_id },
@@ -683,7 +633,6 @@ exports.resetPassword = async (req, res) => {
             });
         }
 
-        // Step 8: Commit transaction
         try {
             await t.commit();
         } catch (error) {
@@ -694,7 +643,6 @@ exports.resetPassword = async (req, res) => {
             });
         }
 
-        // Step 9: Send confirmation email
         try {
             const mailOptions = {
                 from: process.env.EMAIL_USER,
@@ -716,7 +664,6 @@ exports.resetPassword = async (req, res) => {
             });
         }
 
-        // Final response
         res.json({
             error: false,
             message: 'Password has been reset successfully',
