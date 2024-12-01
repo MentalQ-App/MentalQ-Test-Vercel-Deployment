@@ -325,3 +325,7 @@ exports.deleteUser = async (req, res) => {
         });
     }
 };
+
+exports.TermsOfService = async (req, res) => {
+    res.render('terms-of-service')
+}
