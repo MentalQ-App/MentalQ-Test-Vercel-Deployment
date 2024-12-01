@@ -15,7 +15,7 @@ router.put('/users/update', authenticateToken, userController.uploadProfileImage
     next();
 }, userController.updateUser);
 
-router.get('terms-of-service', userController.TermsOfService);
+router.get('/terms-of-service', userController.TermsOfService);
 
 // Auth Routes
 router.post('/register', authController.registerUser);
