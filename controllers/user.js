@@ -4,6 +4,7 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const multer = require('multer');
 const { Storage } = require('@google-cloud/storage');
+const exp = require('constants');
 require('dotenv').config();
 
 const gcloudCreds = JSON.parse(process.env.GCLOUD_CREDENTIALS);
@@ -325,3 +326,11 @@ exports.deleteUser = async (req, res) => {
         });
     }
 };
+
+exports.TermsOfService = async (req, res) => {
+    res.render('terms-of-service')
+}
+
+exports.PrivacyPolicy = async (req, res) => {
+    res.render('privacy-policy')
+}
