@@ -248,3 +248,91 @@ exports.TermsOfService = async (req, res) => {
 exports.PrivacyPolicy = async (req, res) => {
     res.render('privacy-policy')
 }
+
+exports.getAllPsychologists = async (req, res) => {
+    let t;
+ 
+    try {
+       t = await db.sequelize.transaction();
+ 
+       const psikolog = await Psychologist.findAll({
+          attributes: [
+             "psychologist_id",
+             "prefix_title",
+             "suffix_title",
+             "certificate",
+             "price",
+             "isVerified",
+             "user_id",
+             "isOnline",
+          ],
+          where: { isVerified: true },
+          include: [
+             {
+                model: Users,
+                as: "users",
+                attributes: ["name", "profile_photo_url"],
+             },
+          ],
+          transaction: t,
+       });
+ 
+       await t.commit();
+ 
+       res.status(200).json({
+          error: false,
+          message: "Users retrieved successfully",
+          users: psikolog,
+       });
+    } catch (error) {
+       res.status(500).json({
+          error: true,
+          message: error.message,
+       });
+    }
+ };
+ exports.getPsychologistById = async (req, res) => {
+    const { id } = req.params;
+    let t;
+ 
+    try {
+       t = await db.sequelize.transaction();
+ 
+       const psychologist = await Psychologist.findOne({
+          where: {
+             user_id: id,
+             isVerified: true,
+          },
+          include: [
+             {
+                model: Users,
+                as: "users",
+                attributes: ["name", "profile_photo_url"],
+             },
+          ],
+          transaction: t,
+       });
+ 
+       if (!psychologist) {
+          await t.rollback();
+          return res.status(404).json({
+             error: true,
+             message: "Psychologist not found",
+          });
+       }
+ 
+       await t.commit();
+ 
+       res.status(200).json({
+          error: false,
+          message: "Psychologist retrieved successfully",
+          psychologist,
+       });
+    } catch (error) {
+       if (t) await t.rollback();
+       res.status(500).json({
+          error: true,
+          message: error.message,
+       });
+    }
+ };
