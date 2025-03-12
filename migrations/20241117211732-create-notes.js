@@ -24,7 +24,11 @@ module.exports = {
         allowNull: true,
       },
       content: {
-        type: Sequelize.STRING,
+        type: Sequelize.TEXT,
+        allowNull: true,
+      },
+      content_normalized: {
+        type: Sequelize.TEXT,
         allowNull: true,
       },
       emotion: {

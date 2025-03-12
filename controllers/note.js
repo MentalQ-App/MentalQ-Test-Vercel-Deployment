@@ -9,32 +9,56 @@ exports.createNote = async (req, res) => {
     let t;
 
     try {
-        // if (!title || !content || !emotion) {
-        //     return res.status(400).json({ 
-        //         error: true, 
-        //         message: 'All fields are required' 
-        //     });
-        // }
-
         t = await db.sequelize.transaction();
 
         const user = await Users.findByPk(user_id, { transaction: t });
-        
+
         if (!user) {
             await t.rollback();
-            return res.status(404).json({ 
-                error: true, 
-                message: 'User not found' 
+            return res.status(404).json({
+                error: true,
+                message: "User not found",
+            });
+        }
+
+        const todayDate = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Jakarta",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        }).format(new Date());
+
+        const existingNote = await Notes.findOne({
+            where: {
+                user_id,
+                isActive: true,
+                createdAt: {
+                    [db.Sequelize.Op.gte]: db.sequelize.literal(
+                        `DATE('${todayDate}')`
+                    ),
+                    [db.Sequelize.Op.lt]: db.sequelize.literal(
+                        `DATE('${todayDate}') + INTERVAL 1 DAY`
+                    ),
+                },
+            },
+            transaction: t,
+        });
+
+        if (existingNote) {
+            await t.rollback();
+            return res.status(400).json({
+                error: true,
+                message: "You have already created a note today",
             });
         }
 
         const newNote = await Notes.create(
-            { 
-                user_id, 
-                title, 
-                content, 
-                emotion 
-            }, 
+            {
+                user_id,
+                title,
+                content,
+                emotion,
+            },
             { transaction: t }
         );
 
@@ -42,14 +66,14 @@ exports.createNote = async (req, res) => {
 
         res.status(201).json({
             error: false,
-            message: 'Note created successfully',
-            note: newNote
+            message: "Note created successfully",
+            note: newNote,
         });
     } catch (error) {
         if (t) await t.rollback();
-        res.status(400).json({ 
-            error: true, 
-            message: error.message 
+        res.status(400).json({
+            error: true,
+            message: error.message,
         });
     }
 };
@@ -62,35 +86,55 @@ exports.getAllNotes = async (req, res) => {
         t = await db.sequelize.transaction();
 
         const user = await Users.findByPk(user_id, { transaction: t });
-        
+
         if (!user) {
             await t.rollback();
-            return res.status(404).json({ 
-                error: true, 
-                message: 'User not found' 
+            return res.status(404).json({
+                error: true,
+                message: 'User not found'
             });
         }
 
-        const notes = await Notes.findAll({ 
-            where: { 
+        const notes = await Notes.findAll({
+            where: {
                 user_id,
-                isActive: true 
+                isActive: true,
             },
-            transaction: t 
+            include: [
+                {
+                    model: Analysis,
+                    as: "analysis",
+                    attributes: ["predicted_status", "confidence_score"],
+                },
+            ],
+            transaction: t,
+        });
+
+        const notesWithAnalysis = notes.map((note) => {
+            const analysis = note.analysis || {};
+
+            const noteData = note.toJSON();
+            delete noteData.analysis;
+
+            return {
+                ...noteData,
+                predicted_status: analysis.predicted_status,
+                confidence_score: analysis.confidence_score,
+            };
         });
 
         await t.commit();
 
         res.status(200).json({
             error: false,
-            message: 'Notes retrieved successfully',
-            listNote: notes
+            message: "Notes retrieved successfully",
+            listNote: notesWithAnalysis,
         });
     } catch (error) {
         if (t) await t.rollback();
-        res.status(500).json({ 
-            error: true, 
-            message: error.message 
+        res.status(500).json({
+            error: true,
+            message: error.message,
         });
     }
 };
@@ -103,20 +147,20 @@ exports.getNoteById = async (req, res) => {
     try {
         t = await db.sequelize.transaction();
 
-        const note = await Notes.findOne({ 
-            where: { 
+        const note = await Notes.findOne({
+            where: {
                 note_id: id,
                 user_id,
-                isActive: true 
+                isActive: true
             },
-            transaction: t 
+            transaction: t
         });
 
         if (!note) {
             await t.rollback();
-            return res.status(404).json({ 
-                error: true, 
-                message: 'Note not found' 
+            return res.status(404).json({
+                error: true,
+                message: 'Note not found'
             });
         }
 
@@ -128,9 +172,9 @@ exports.getNoteById = async (req, res) => {
         });
     } catch (error) {
         if (t) await t.rollback();
-        res.status(500).json({ 
-            error: true, 
-            message: error.message 
+        res.status(500).json({
+            error: true,
+            message: error.message
         });
     }
 };
@@ -144,32 +188,40 @@ exports.updateNote = async (req, res) => {
     try {
         t = await db.sequelize.transaction();
 
-        const note = await Notes.findOne({ 
-            where: { 
+        const note = await Notes.findOne({
+            where: {
                 note_id: id,
                 user_id,
-                isActive: true 
+                isActive: true
             },
-            transaction: t 
+            transaction: t
         });
 
         if (!note) {
             await t.rollback();
-            return res.status(404).json({ 
-                error: true, 
-                message: 'Note not found' 
+            return res.status(404).json({
+                error: true,
+                message: 'Note not found'
             });
         }
 
-        const updatedNote = await note.update({
-            title: title || note.title,
-            content: content || note.content,
-            emotion: emotion || note.emotion
-        }, { transaction: t });
+        const initialContent = note.content;
+
+        const updatedNote = await note.update(
+            {
+                title: title || note.title,
+                content: content || note.content,
+                emotion: emotion || note.emotion,
+                content_normalized: content_normalized || note.content_normalized,
+            },
+            { transaction: t }
+        );
 
         await t.commit();
 
-        analyzeNotes(user_id);
+        if (content != initialContent) {
+            analyzeNotes(user_id);
+        }
 
         res.status(200).json({
             error: false,
@@ -178,9 +230,9 @@ exports.updateNote = async (req, res) => {
         });
     } catch (error) {
         if (t) await t.rollback();
-        res.status(400).json({ 
-            error: true, 
-            message: error.message 
+        res.status(400).json({
+            error: true,
+            message: error.message
         });
     }
 };
@@ -193,38 +245,41 @@ exports.deleteNote = async (req, res) => {
     try {
         t = await db.sequelize.transaction();
 
-        const note = await Notes.findOne({ 
-            where: { 
+        const note = await Notes.findOne({
+            where: {
                 note_id: id,
                 user_id,
-                isActive: true 
+                isActive: true,
             },
-            transaction: t 
+            transaction: t,
         });
 
         if (!note) {
             await t.rollback();
-            return res.status(404).json({ 
-                error: true, 
-                message: 'Note not found' 
+            return res.status(404).json({
+                error: true,
+                message: "Note not found",
             });
         }
 
-        await note.update({ 
-            isActive: false 
-        }, { transaction: t });
+        await note.update(
+            {
+                isActive: false,
+            },
+            { transaction: t }
+        );
 
         await t.commit();
 
-        res.status(200).json({ 
+        res.status(200).json({
             error: false,
-            message: 'Note deleted successfully' 
+            message: "Note deleted successfully",
         });
     } catch (error) {
         if (t) await t.rollback();
-        res.status(400).json({ 
-            error: true, 
-            message: error.message 
+        res.status(400).json({
+            error: true,
+            message: error.message,
         });
     }
 };
@@ -239,42 +294,61 @@ const analyzeNotes = async (user_id) => {
                     [db.Sequelize.Op.gte]: new Date(new Date().setHours(0, 0, 0, 0)),
                 },
             },
-            order: [['updatedAt', 'DESC']],
+            order: [["updatedAt", "DESC"]],
             limit: 1,
         });
 
         if (dailyNotes.length === 0) {
-            console.log('No daily notes found for analysis');
+            console.log("No daily notes found for analysis");
             return null;
         }
 
-        const content = dailyNotes.map((note) => note.content).join(' ');
+        const content = dailyNotes
+            .map((note) => note.content_normalized || note.content)
+            .join(" ");
 
         const aiResponse = await axios.post(
-            process.env.CLOUDRUNAPI + '/predict',
-            { data: [content] },
+            process.env.CLOUDRUNAPI + "/predict",
+            { statements: [content] },
             {
-                headers: { 'Content-Type': 'application/json' },
+                headers: { "Content-Type": "application/json" },
             }
         );
 
-        const { predicted_status } = aiResponse.data[0];
+        const { predicted_status, confidence_scores } = aiResponse.data[0];
 
-        const newAnalysis = await Analysis.create({
-            note_id: dailyNotes[0].note_id,
-            predicted_status: predicted_status,
+        const highest_confidence_score = Math.max(
+            ...Object.values(confidence_scores)
+        );
+
+        const findNoteById = await Analysis.findOne({
+            where: {
+                note_id: dailyNotes[0].note_id,
+            },
         });
 
-        console.log('Analysis completed successfully:', newAnalysis);
-        return newAnalysis;
+        if (findNoteById) {
+            const updatedAnalysis = await findNoteById.update({
+                predicted_status: predicted_status,
+                confidence_score: highest_confidence_score,
+            });
+            console.log("Analysis updated successfully:", updatedAnalysis);
+            return updatedAnalysis;
+        } else {
+            const newAnalysis = await Analysis.create({
+                note_id: dailyNotes[0].note_id,
+                predicted_status: predicted_status,
+                confidence_score: highest_confidence_score,
+            });
+            console.log("Analysis completed successfully:", newAnalysis);
+            return newAnalysis;
+        }
     } catch (error) {
-        console.error('Error analyzing notes:', error.message);
+        console.error("Error analyzing notes:", error.message);
         console.error(error.stack);
         return null;
     }
 };
-
-
 
 // exports.analyzeDailyNotes = async (req, res) => {
 //     const user_id = req.user_id;
