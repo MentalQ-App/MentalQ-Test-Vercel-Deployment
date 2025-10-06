@@ -1,14 +1,16 @@
-const db = require('../models');
-const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
-const crypto = require('crypto');
-const bcrypt = require('bcrypt');
-const validator = require('validator');
-const rateLimit = require('express-rate-limit');
-const admin = require('firebase-admin');
-require('dotenv').config();
+const db = require("../models");
+const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
+const crypto = require("crypto");
+const bcrypt = require("bcrypt");
+const validator = require("validator");
+const rateLimit = require("express-rate-limit");
+const admin = require("firebase-admin");
+require("dotenv").config();
+const fs = require("fs");
 
-const { Users, Credentials, UserSessions, PasswordResetTokens } = db;
+const { Users, Credentials, UserSessions, PasswordResetTokens, Psychologist } =
+    db;
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -24,7 +26,7 @@ async function sendVerificationEmail(email, token) {
     const mailOptions = {
         from: process.env.EMAIL_USER,
         to: email,
-        subject: 'Verify Your Email',
+        subject: "Verify Your Email",
         html: `
             <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                 <div style="text-align: center; background-color: #f4f4f4; padding: 20px;">
@@ -64,36 +66,47 @@ exports.registerUser = async (req, res) => {
 
     try {
         if (!email || !password || !name || !birthday) {
-            return res.status(400).json({ 
-                error: true, 
-                message: 'All fields are required' 
+            return res.status(400).json({
+                error: true,
+                message: "All fields are required",
             });
         }
 
-        const [day, month, year] = birthday.split('/');
+        const [day, month, year] = birthday.split("/");
         const birthdayDate = new Date(`${year}-${month}-${day}`);
 
         if (isNaN(birthdayDate.getTime())) {
-            return res.status(400).json({ 
-                error: true, 
-                message: 'Invalid birthday format' 
+            return res.status(400).json({
+                error: true,
+                message: "Invalid birthday format",
             });
         }
-
         t = await db.sequelize.transaction();
 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+        const emailVerificationToken = crypto.randomBytes(32).toString("hex");
         const emailVerificationExpires = Date.now() + 3600000;
 
+        const existingUser = await Users.findOne({
+            where: { email },
+            transaction: t,
+        });
+        if (existingUser) {
+            await t.rollback();
+            return res.status(400).json({
+                error: true,
+                message: "Email is already registered",
+            });
+        }
+
         const newCredentials = await Credentials.create(
-            { 
-                email, 
+            {
+                email,
                 password: hashedPassword,
                 email_verification_token: emailVerificationToken,
-                email_verification_expires: emailVerificationExpires
+                email_verification_expires: emailVerificationExpires,
             },
             { transaction: t }
         );
@@ -103,7 +116,7 @@ exports.registerUser = async (req, res) => {
                 credentials_id: newCredentials.credentials_id,
                 email,
                 name,
-                birthday: birthdayDate
+                birthday: birthdayDate,
             },
             { transaction: t }
         );
@@ -114,7 +127,114 @@ exports.registerUser = async (req, res) => {
 
         res.status(201).json({
             error: false,
-            message: 'User registered successfully! Please check your email to verify your account.'
+            message:
+                "User registered successfully! Please check your email to verify your account.",
+        });
+    } catch (error) {
+        if (t) await t.rollback();
+        res.status(400).json({ error: true, message: error.message });
+    }
+};
+
+exports.registerPsikologi = async (req, res) => {
+    const {
+        email,
+        password,
+        name,
+        birthday,
+        prefix_title,
+        suffix_title,
+        certificate,
+        price,
+    } = req.body;
+    let t;
+
+    try {
+        if (
+            !email ||
+            !password ||
+            !name ||
+            !birthday ||
+            !prefix_title ||
+            !suffix_title ||
+            !certificate ||
+            !price
+        ) {
+            return res.status(400).json({
+                error: true,
+                message: "All fields are required",
+            });
+        }
+
+        const [day, month, year] = birthday.split("/");
+        const birthdayDate = new Date(`${year}-${month}-${day}`);
+
+        if (isNaN(birthdayDate.getTime())) {
+            return res.status(400).json({
+                error: true,
+                message: "Invalid birthday format",
+            });
+        }
+
+        t = await db.sequelize.transaction();
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const emailVerificationToken = crypto.randomBytes(32).toString("hex");
+        const emailVerificationExpires = Date.now() + 3600000;
+
+        const existingUser = await Users.findOne({
+            where: { email },
+            transaction: t,
+        });
+        if (existingUser) {
+            await t.rollback();
+            return res.status(400).json({
+                error: true,
+                message: "Email is already registered",
+            });
+        }
+
+        const newCredentials = await Credentials.create(
+            {
+                email,
+                password: hashedPassword,
+                email_verification_token: emailVerificationToken,
+                email_verification_expires: emailVerificationExpires,
+                role: "psychologist",
+            },
+            { transaction: t }
+        );
+
+        const user = await Users.create(
+            {
+                credentials_id: newCredentials.credentials_id,
+                email,
+                name,
+                birthday: birthdayDate,
+            },
+            { transaction: t }
+        );
+
+        await Psychologist.create(
+            {
+                user_id: user.user_id,
+                prefix_title,
+                suffix_title,
+                certificate,
+                price,
+            },
+            { transaction: t }
+        );
+
+        await sendVerificationEmail(email, emailVerificationToken);
+        await t.commit();
+
+        res.status(201).json({
+            error: false,
+            message:
+                "User registered successfully! Please check your email to verify your account.",
         });
     } catch (error) {
         if (t) await t.rollback();
@@ -134,9 +254,9 @@ exports.verifyEmail = async (req, res) => {
         });
 
         if (!credentials) {
-            return res.render('email-register-verification', { 
+            return res.render('email-register-verification', {
                 status: 'error',
-                message: 'Invalid or expired verification token' 
+                message: 'Invalid or expired verification token'
             });
         }
 
@@ -145,14 +265,15 @@ exports.verifyEmail = async (req, res) => {
         credentials.email_verification_expires = null;
         await credentials.save();
 
-        res.render('email-register-verification', { 
+        res.render('email-register-verification', {
             status: 'success',
-            message: 'Email verified successfully! You can now open MentalQ App and login'
+            message:
+                'Email verified successfully! You can now open MentalQ App and login'
         });
     } catch (error) {
-        res.render('email-register-verification', { 
+        res.render('email-register-verification', {
             status: 'error',
-            message: error.message 
+            message: error.message
         });
     }
 };
@@ -163,9 +284,9 @@ exports.loginUser = async (req, res) => {
 
     try {
         if (!email || !password) {
-            return res.status(400).json({ 
-                error: true, 
-                message: 'Email and password are required' 
+            return res.status(400).json({
+                error: true,
+                message: 'Email and password are required'
             });
         }
 
@@ -179,32 +300,35 @@ exports.loginUser = async (req, res) => {
 
         if (!user) {
             await t.rollback();
-            return res.status(404).json({ 
-                error: true, 
-                message: 'User not found' 
+            return res.status(404).json({
+                error: true,
+                message: 'User not found'
             });
         }
 
         if (!user.credentials.is_email_verified) {
             await t.rollback();
-            return res.status(401).json({ 
-                error: true, 
-                message: 'Email is not verified' 
+            return res.status(401).json({
+                error: true,
+                message: 'Email is not verified'
             });
         }
-        
-        const validPassword = await bcrypt.compare(password, user.credentials.password);
+
+        const validPassword = await bcrypt.compare(
+            password,
+            user.credentials.password
+        );
 
         if (!validPassword) {
             await t.rollback();
-            return res.status(401).json({ 
-                error: true, 
-                message: 'Invalid password' 
+            return res.status(401).json({
+                error: true,
+                message: 'Invalid password'
             });
         }
 
         const token = jwt.sign(
-            { user_id: user.user_id }, 
+            { user_id: user.user_id },
             process.env.TOKEN_SECRET
         );
 
@@ -227,18 +351,17 @@ exports.loginUser = async (req, res) => {
             role: user.credentials.role
         };
 
-        res.status(200).json({ 
+        res.status(200).json({
             error: false,
             message: 'User logged in successfully',
             user: safeUser,
-            token: token  
+            token: token
         });
-
     } catch (error) {
         if (t) await t.rollback();
-        res.status(400).json({ 
-            error: true, 
-            message: error.message 
+        res.status(400).json({
+            error: true,
+            message: error.message
         });
     }
 };
@@ -248,13 +371,13 @@ const firebaseCreds = JSON.parse(process.env.FIREBASE_CREDENTIALS);
 admin.initializeApp({
     credential: admin.credential.cert(firebaseCreds),
     projectId: firebaseCreds.project_id
-  });
+});
 
 
 exports.authFirebase = async (req, res) => {
     const { firebaseToken } = req.body;
 
-    try{
+    try {
         const decodedToken = await admin.auth().verifyIdToken(firebaseToken, true);
         const { email, name, picture } = decodedToken;
 
@@ -267,8 +390,8 @@ exports.authFirebase = async (req, res) => {
             const t = await db.sequelize.transaction();
 
             const newCredentials = await Credentials.create(
-                { 
-                    email: email, 
+                {
+                    email: email,
                     firebase_uid: decodedToken.uid,
                     is_email_verified: true,
                     role: 'user'
@@ -290,7 +413,7 @@ exports.authFirebase = async (req, res) => {
         }
 
         const token = jwt.sign(
-            { user_id: user.user_id }, 
+            { user_id: user.user_id },
             process.env.TOKEN_SECRET
         );
 
@@ -317,9 +440,9 @@ exports.authFirebase = async (req, res) => {
             token: token
         });
     } catch (error) {
-        res.status(400).json({ 
-            error: true, 
-            message: error.message 
+        res.status(400).json({
+            error: true,
+            message: error.message
         });
     }
 };
@@ -502,178 +625,180 @@ exports.verifyOTP = [otpRequestLimiter, async (req, res) => {
 exports.resetPassword = async (req, res) => {
     const { email, otp, newPassword } = req.body;
     let t;
-
+ 
     try {
-        if (!email || !otp || !newPassword) {
-            return res.status(400).json({
-                error: true,
-                message: 'Email, OTP, and new password are required',
-            });
-        }
-
-        if (!validator.isEmail(email)) {
-            return res.status(400).json({
-                error: true,
-                message: 'Invalid email format',
-            });
-        }
-
-        if (
-            newPassword.length < 8 ||
-            !/[A-Z]/.test(newPassword) ||
-            !/\d/.test(newPassword)
-        ) {
-            return res.status(400).json({
-                error: true,
-                message: 'Password must be at least 8 characters long, include an uppercase letter, and a number',
-            });
-        }
-
-        try {
-            t = await db.sequelize.transaction();
-        } catch (error) {
-            console.error('Failed to start database transaction:', error);
-            return res.status(500).json({
-                error: true,
-                message: 'Failed to process the request. Please try again later.',
-            });
-        }
-
-        let user;
-        try {
-            user = await Users.findOne({
-                where: { email },
-                include: 'credentials',
-                transaction: t,
-            });
-        } catch (error) {
-            console.error('Database error while finding user:', error);
-            await t.rollback();
-            return res.status(500).json({
-                error: true,
-                message: 'An error occurred while finding the user.',
-            });
-        }
-
-        if (!user) {
-            await t.rollback();
-            return res.status(404).json({
-                error: true,
-                message: 'User not found',
-            });
-        }
-
-        let resetToken;
-        try {
-            resetToken = await PasswordResetTokens.findOne({
-                where: {
-                    user_id: user.user_id,
-                    token: otp,
-                    expiresAt: {
-                        [db.Sequelize.Op.gt]: new Date(),
-                    },
+       if (!email || !otp || !newPassword) {
+          return res.status(400).json({
+             error: true,
+             message: "Email, OTP, and new password are required",
+          });
+       }
+ 
+       if (!validator.isEmail(email)) {
+          return res.status(400).json({
+             error: true,
+             message: "Invalid email format",
+          });
+       }
+ 
+       if (
+          newPassword.length < 8 ||
+          !/[A-Z]/.test(newPassword) ||
+          !/\d/.test(newPassword)
+       ) {
+          return res.status(400).json({
+             error: true,
+             message:
+                "Password must be at least 8 characters long, include an uppercase letter, and a number",
+          });
+       }
+ 
+       try {
+          t = await db.sequelize.transaction();
+       } catch (error) {
+          console.error("Failed to start database transaction:", error);
+          return res.status(500).json({
+             error: true,
+             message: "Failed to process the request. Please try again later.",
+          });
+       }
+ 
+       let user;
+       try {
+          user = await Users.findOne({
+             where: { email },
+             include: "credentials",
+             transaction: t,
+          });
+       } catch (error) {
+          console.error("Database error while finding user:", error);
+          await t.rollback();
+          return res.status(500).json({
+             error: true,
+             message: "An error occurred while finding the user.",
+          });
+       }
+ 
+       if (!user) {
+          await t.rollback();
+          return res.status(404).json({
+             error: true,
+             message: "User not found",
+          });
+       }
+ 
+       let resetToken;
+       try {
+          resetToken = await PasswordResetTokens.findOne({
+             where: {
+                user_id: user.user_id,
+                token: otp,
+                expiresAt: {
+                   [db.Sequelize.Op.gt]: new Date(),
                 },
-                transaction: t,
-            });
-        } catch (error) {
-            console.error('Database error while finding reset token:', error);
-            await t.rollback();
-            return res.status(500).json({
-                error: true,
-                message: 'An error occurred while validating the OTP.',
-            });
-        }
-
-        if (!resetToken) {
-            await t.rollback();
-            return res.status(400).json({
-                error: true,
-                message: 'Invalid or expired OTP',
-            });
-        }
-
-        let hashedPassword;
-        try {
-            const salt = await bcrypt.genSalt(10);
-            hashedPassword = await bcrypt.hash(newPassword, salt);
-        } catch (error) {
-            console.error('Error while hashing the password:', error);
-            await t.rollback();
-            return res.status(500).json({
-                error: true,
-                message: 'Failed to reset the password. Please try again later.',
-            });
-        }
-
-        try {
-            await user.credentials.update(
-                { password: hashedPassword },
-                { transaction: t }
-            );
-        } catch (error) {
-            console.error('Error while updating user credentials:', error);
-            await t.rollback();
-            return res.status(500).json({
-                error: true,
-                message: 'Failed to update the password. Please try again later.',
-            });
-        }
-
-        try {
-            await PasswordResetTokens.destroy({
-                where: { user_id: user.user_id },
-                transaction: t,
-            });
-        } catch (error) {
-            console.error('Error while deleting the reset token:', error);
-            await t.rollback();
-            return res.status(500).json({
-                error: true,
-                message: 'Failed to complete the password reset process.',
-            });
-        }
-
-        try {
-            await t.commit();
-        } catch (error) {
-            console.error('Error while committing the transaction:', error);
-            return res.status(500).json({
-                error: true,
-                message: 'An error occurred while finalizing the password reset.',
-            });
-        }
-
-        try {
-            const mailOptions = {
-                from: process.env.EMAIL_USER,
-                to: email,
-                subject: 'Password Reset Successful',
-                html: `
-                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                        <h2>Password Reset Successful</h2>
-                        <p>Your password has been reset successfully. If you did not perform this action, please contact support immediately.</p>
-                    </div>
-                `,
-            };
-            await transporter.sendMail(mailOptions);
-        } catch (error) {
-            console.error('Error while sending confirmation email:', error);
-            return res.status(500).json({
-                error: true,
-                message: 'Password reset succeeded, but failed to send confirmation email.',
-            });
-        }
-
-        res.json({
-            error: false,
-            message: 'Password has been reset successfully',
-        });
+             },
+             transaction: t,
+          });
+       } catch (error) {
+          console.error("Database error while finding reset token:", error);
+          await t.rollback();
+          return res.status(500).json({
+             error: true,
+             message: "An error occurred while validating the OTP.",
+          });
+       }
+ 
+       if (!resetToken) {
+          await t.rollback();
+          return res.status(400).json({
+             error: true,
+             message: "Invalid or expired OTP",
+          });
+       }
+ 
+       let hashedPassword;
+       try {
+          const salt = await bcrypt.genSalt(10);
+          hashedPassword = await bcrypt.hash(newPassword, salt);
+       } catch (error) {
+          console.error("Error while hashing the password:", error);
+          await t.rollback();
+          return res.status(500).json({
+             error: true,
+             message: "Failed to reset the password. Please try again later.",
+          });
+       }
+ 
+       try {
+          await user.credentials.update(
+             { password: hashedPassword },
+             { transaction: t }
+          );
+       } catch (error) {
+          console.error("Error while updating user credentials:", error);
+          await t.rollback();
+          return res.status(500).json({
+             error: true,
+             message: "Failed to update the password. Please try again later.",
+          });
+       }
+ 
+       try {
+          await PasswordResetTokens.destroy({
+             where: { user_id: user.user_id },
+             transaction: t,
+          });
+       } catch (error) {
+          console.error("Error while deleting the reset token:", error);
+          await t.rollback();
+          return res.status(500).json({
+             error: true,
+             message: "Failed to complete the password reset process.",
+          });
+       }
+ 
+       try {
+          await t.commit();
+       } catch (error) {
+          console.error("Error while committing the transaction:", error);
+          return res.status(500).json({
+             error: true,
+             message: "An error occurred while finalizing the password reset.",
+          });
+       }
+ 
+       try {
+          const mailOptions = {
+             from: process.env.EMAIL_USER,
+             to: email,
+             subject: "Password Reset Successful",
+             html: `
+                     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                         <h2>Password Reset Successful</h2>
+                         <p>Your password has been reset successfully. If you did not perform this action, please contact support immediately.</p>
+                     </div>
+                 `,
+          };
+          await transporter.sendMail(mailOptions);
+       } catch (error) {
+          console.error("Error while sending confirmation email:", error);
+          return res.status(500).json({
+             error: true,
+             message:
+                "Password reset succeeded, but failed to send confirmation email.",
+          });
+       }
+ 
+       res.json({
+          error: false,
+          message: "Password has been reset successfully",
+       });
     } catch (error) {
-        console.error('Unhandled error during password reset:', error);
-        if (t) await t.rollback();
-        res.status(500).json({
-            error: true,
-            message: 'An unexpected error occurred while resetting the password.',
-        });
+       console.error("Unhandled error during password reset:", error);
+       if (t) await t.rollback();
+       res.status(500).json({
+          error: true,
+          message: "An unexpected error occurred while resetting the password.",
+       });
     }
 };

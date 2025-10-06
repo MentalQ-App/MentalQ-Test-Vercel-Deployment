@@ -42,7 +42,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
       content: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      content_normalized: {
+        type: DataTypes.TEXT,
         allowNull: true,
       },
       emotion: {
